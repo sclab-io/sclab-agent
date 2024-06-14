@@ -69,7 +69,7 @@ $ npx pm2 logs
 $ npx pm2 stop 0
 ~~~
 
-## connection test
+# connection test
 ~~~bash
 # You have to use -k option for avoid self signed certificate problem.
 # You can replace your certificate files from CA.
