@@ -47,12 +47,29 @@ $ sudo openssl req -new -sha256 -key ./cert/privkey.pem -out ./cert/csr.pem
 $ sudo openssl x509 -req -in ./cert/csr.pem -signkey ./cert/privkey.pem -out ./cert/cert.pem
 ~~~
 
-## run
+# run
 ~~~bash
-$ ./sclab-agent-linux-x64
+# install packages
+$ npm install
+
+# production mode
+$ npm run deploy:prod
+
+# dev mode
+$ npm run dev
 ~~~
 
-## connect test
+# log
+~~~bash
+$ npx pm2 logs
+~~~
+
+# stop
+~~~bash
+$ npx pm2 stop 0
+~~~
+
+## connection test
 ~~~bash
 # You have to use -k option for avoid self signed certificate problem.
 # You can replace your certificate files from CA.
