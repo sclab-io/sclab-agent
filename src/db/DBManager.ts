@@ -1,14 +1,14 @@
-import type { DB } from "../types";
-import { DB_TYPE } from "../types/consts";
-import presto from "presto-client";
-import type { ClientOptions } from "presto-client";
-import { logger } from "../util/logger";
-import mariadb from "mariadb";
-import oracledb from "oracledb";
-import sql from "mssql";
-import { MSSQL_IDLE_TIMEOUT_MS } from "../config";
-import odbc from "odbc";
-import { App } from "../app";
+import type { Catalog, Column, DB, Schema, Table } from '../types';
+import { DB_TYPE } from '../types/consts';
+import presto from 'presto-client';
+import type { ClientOptions } from 'presto-client';
+import { logger } from '../util/logger';
+import mariadb from 'mariadb';
+import oracledb from 'oracledb';
+import sql from 'mssql';
+import { MSSQL_IDLE_TIMEOUT_MS } from '../config';
+import odbc from 'odbc';
+import { App } from '../app';
 
 // BigInt bug fix to string
 (BigInt.prototype as any).toJSON = function () {
@@ -18,12 +18,7 @@ import { App } from "../app";
   return parseInt(this.toString(), 10);
 };
 interface DBClient {
-  client:
-    | presto.Client
-    | mariadb.Pool
-    | oracledb.Pool
-    | sql.ConnectionPool
-    | odbc.Pool;
+  client: presto.Client | mariadb.Pool | oracledb.Pool | sql.ConnectionPool | odbc.Pool;
   type: string;
 }
 
@@ -40,14 +35,14 @@ export class DBManager {
           catalog: db.options.catalog,
           schema: db.options.schema,
           engine: db.options.engine,
-          source: "SCLAB Agent",
+          source: 'SCLAB Agent',
         };
-        if (db.options.authType === "basic" && db.options.user) {
+        if (db.options.authType === 'basic' && db.options.user) {
           prestoOptions.basic_auth = {
             user: db.options.user,
-            password: db.options.password || "",
+            password: db.options.password || '',
           };
-        } else if (db.options.authType === "custom" && db.options.customAuth) {
+        } else if (db.options.authType === 'custom' && db.options.customAuth) {
           prestoOptions.custom_auth = db.options.customAuth;
         }
         DBManager.dbMap.set(db.name, {
@@ -99,9 +94,7 @@ export class DBManager {
           pool: {
             max: db.options.maxPool || 10,
             min: db.options.minPoll || 0,
-            idleTimeoutMillis:
-              (MSSQL_IDLE_TIMEOUT_MS && parseInt(MSSQL_IDLE_TIMEOUT_MS, 10)) ||
-              30000,
+            idleTimeoutMillis: (MSSQL_IDLE_TIMEOUT_MS && parseInt(MSSQL_IDLE_TIMEOUT_MS, 10)) || 30000,
           },
           options: {
             trustedConnection: true,
@@ -190,19 +183,17 @@ export class DBManager {
           case DB_TYPE.TRINO: {
             const client = dbClient.client as presto.Client;
             client.execute({
-              query: "select 1",
+              query: 'select 1',
               success: function (error: any) {
                 if (error) {
                   return;
                 }
-                logger.info("Presto/Trino connection success");
+                logger.info('Presto/Trino connection success');
                 resolve(true);
               },
               error: (error: any) => {
                 console.error(error);
-                logger.info(
-                  `Cannot connect to Presto/Trino. Please check your config.`
-                );
+                logger.info(`Cannot connect to Presto/Trino. Please check your config.`);
                 reject(false);
               },
             });
@@ -214,7 +205,7 @@ export class DBManager {
             const client = dbClient.client as mariadb.Pool;
             const conn = await client.getConnection();
             try {
-              await conn.query("select 1");
+              await conn.query('select 1');
               resolve(true);
             } catch (e) {
               console.error(e);
@@ -230,13 +221,11 @@ export class DBManager {
             const client = dbClient.client as oracledb.Pool;
             const conn = await client.getConnection();
             try {
-              await conn.execute("SELECT 1 FROM DUAL");
+              await conn.execute('SELECT 1 FROM DUAL');
               resolve(true);
             } catch (e) {
               console.error(e);
-              logger.info(
-                `Cannot connect to ORACLE. Please check your config.`
-              );
+              logger.info(`Cannot connect to ORACLE. Please check your config.`);
               reject(false);
             } finally {
               await conn.close();
@@ -247,13 +236,11 @@ export class DBManager {
           case DB_TYPE.SQL_SERVER: {
             const client = dbClient.client as sql.ConnectionPool;
             try {
-              await client.query("SELECT 1");
+              await client.query('SELECT 1');
               resolve(true);
             } catch (e) {
               console.error(e);
-              logger.info(
-                `Cannot connect to SQL Server. Please check your config.`
-              );
+              logger.info(`Cannot connect to SQL Server. Please check your config.`);
               reject(false);
             }
             break;
@@ -265,7 +252,7 @@ export class DBManager {
               if (client) {
                 resolve(true);
               } else {
-                throw new Error("ODBC Connection fail");
+                throw new Error('ODBC Connection fail');
               }
             } catch (e) {
               console.error(e);
@@ -282,17 +269,10 @@ export class DBManager {
   }
 
   static hasLimitClause(sql: string): boolean {
-    return (
-      /\bSELECT\b[\s\S]*?\bLIMIT\b\s+\d+/i.test(sql) ||
-      /SELECT\s+TOP\s+\d+/i.test(sql)
-    );
+    return /\bSELECT\b[\s\S]*?\bLIMIT\b\s+\d+/i.test(sql) || /SELECT\s+TOP\s+\d+/i.test(sql);
   }
 
-  static ensureLimitClause(
-    sql: string,
-    limit: number = 10,
-    dbType?: string
-  ): string {
+  static ensureLimitClause(sql: string, limit: number = 10, dbType?: string): string {
     if (DBManager.hasLimitClause(sql)) {
       return sql;
     }
@@ -424,43 +404,47 @@ export class DBManager {
     });
   }
 
-  static async getCatalogs(dbName: string): Promise<any> {
+  static async getCatalogs(dbName: string): Promise<Catalog[]> {
     const dbClient = DBManager.getClient(dbName);
     if (dbClient.type !== DB_TYPE.TRINO) {
-      return {
-        status: "error",
-        result: "Retrieving catalogs is only supported in Trino or Presto.",
-      };
+      throw new Error('Retrieving catalogs is only supported in Trino or Presto.');
     }
-    const result = await DBManager.runSQL(dbName, "SHOW CATALOGS");
-    return result;
+    const result = await DBManager.runSQL(dbName, 'SHOW CATALOGS');
+    return result.map((row: { Catalog: string }) => {
+      return {
+        name: row.Catalog,
+      };
+    });
   }
 
-  static async getSchemas(data: {
-    name: string;
-    catalog?: string;
-  }): Promise<any> {
+  static async getSchemas(data: { name: string; catalog?: string }): Promise<Schema[]> {
     const dbClient = DBManager.getClient(data.name);
     let result: any;
     switch (dbClient.type) {
       case DB_TYPE.TRINO: {
-        result = await DBManager.runSQL(
-          data.name,
-          `SHOW SCHEMAS FROM ${data.catalog}`
-        );
+        result = (await DBManager.runSQL(data.name, `SHOW SCHEMAS FROM ${data.catalog}`)).map((row: { Schema: string }) => {
+          return {
+            name: row.Schema,
+          };
+        });
         break;
       }
 
       case DB_TYPE.MYSQL: {
-        result = await DBManager.runSQL(data.name, "SHOW DATABASES");
+        result = (await DBManager.runSQL(data.name, 'SHOW DATABASES')).map((row: { Database: string }) => {
+          return {
+            name: row.Database,
+          };
+        });
         break;
       }
 
       case DB_TYPE.ORACLE: {
-        result = await DBManager.runSQL(
-          data.name,
-          "SELECT username FROM all_users"
-        );
+        result = (await DBManager.runSQL(data.name, 'SELECT username FROM all_users')).map((row: { USERNAME: string }) => {
+          return {
+            name: row.USERNAME,
+          };
+        });
         break;
       }
 
@@ -469,18 +453,18 @@ export class DBManager {
           data.name,
           `
         SELECT 
-          name, database_id, create_date, state_desc, owner_sid 
+          name
         FROM 
           sys.databases
-        `
+        `,
         );
         break;
       }
 
       case DB_TYPE.ODBC: {
         result = {
-          status: "error",
-          result: "ODBC does not support retrieving schemas.",
+          status: 'error',
+          result: 'ODBC does not support retrieving schemas.',
         };
       }
     }
@@ -488,38 +472,43 @@ export class DBManager {
     return result;
   }
 
-  static async getTables(data: {
-    name: string;
-    catalog?: string;
-    schema: string;
-  }): Promise<any> {
+  static async getTables(data: { name: string; catalog?: string; schema: string }): Promise<Table[]> {
     let result: any;
     const dbClient = DBManager.getClient(data.name);
     switch (dbClient.type) {
       case DB_TYPE.TRINO: {
         if (data.catalog) {
-          result = await DBManager.runSQL(
-            data.name,
-            `SHOW TABLES FROM ${data.catalog}.${data.schema}`
-          );
+          result = (await DBManager.runSQL(data.name, `SHOW TABLES FROM ${data.catalog}.${data.schema}`)).map((row: { Table: string }) => {
+            return {
+              name: row.Table,
+            };
+          });
         } else {
-          result = await DBManager.runSQL(
-            data.name,
-            `SHOW TABLES FROM ${data.schema}`
-          );
+          result = (await DBManager.runSQL(data.name, `SHOW TABLES FROM ${data.schema}`)).map((row: { Table: string }) => {
+            return {
+              name: row.Table,
+            };
+          });
         }
         break;
       }
 
       case DB_TYPE.MYSQL: {
-        result = await DBManager.runSQL(data.name, "SHOW TABLES");
+        result = (await DBManager.runSQL(data.name, 'SHOW TABLES')).map((row: any) => {
+          return {
+            name: row[`Tables_in_${data.schema}`],
+          };
+        });
         break;
       }
 
       case DB_TYPE.ORACLE: {
-        result = await DBManager.runSQL(
-          data.name,
-          `SELECT table_name FROM all_tables WHERE owner = '${data.schema}'`
+        result = (await DBManager.runSQL(data.name, `SELECT table_name FROM all_tables WHERE owner = '${data.schema}'`)).map(
+          (row: { TABLE_NAME: string }) => {
+            return {
+              name: row.TABLE_NAME,
+            };
+          },
         );
         break;
       }
@@ -528,14 +517,11 @@ export class DBManager {
         result = await DBManager.runSQL(
           data.name,
           `SELECT 
-              TABLE_CATALOG AS DatabaseName, 
-              TABLE_SCHEMA AS SchemaName, 
-              TABLE_NAME AS TableName, 
-              TABLE_TYPE AS TableType
+              TABLE_NAME AS name
           FROM 
               ${data.schema}.INFORMATION_SCHEMA.TABLES
           WHERE 
-              TABLE_TYPE = 'BASE TABLE'`
+              TABLE_TYPE = 'BASE TABLE'`,
         );
         break;
       }
@@ -543,19 +529,18 @@ export class DBManager {
       case DB_TYPE.ODBC: {
         const db = await App.agentConfig.getDatabase(data.name);
         const connection = await odbc.connect(db.options.host);
-        result = await connection.tables(data.catalog, data.schema, null, null);
+        result = (await connection.tables(data.catalog, data.schema, null, null)).map((row: { TABLE_NAME: string }) => {
+          return {
+            name: row.TABLE_NAME,
+          };
+        });
         await connection.close();
       }
     }
     return result;
   }
 
-  static async getTable(data: {
-    name: string;
-    catalog?: string;
-    schema: string;
-    table: string;
-  }): Promise<any> {
+  static async getTable(data: { name: string; catalog?: string; schema: string; table: string }): Promise<Column> {
     const dbClient = DBManager.getClient(data.name);
     let result: any;
     switch (dbClient.type) {
@@ -567,28 +552,42 @@ export class DBManager {
           sql = `DESCRIBE ${data.schema}.${data.table}`;
         }
 
-        result = await DBManager.runSQL(data.name, sql);
+        result = (await DBManager.runSQL(data.name, sql)).map((row: { Column: string; Type: string }) => {
+          return {
+            name: row.Column,
+            type: row.Type,
+          };
+        });
         break;
       }
 
       case DB_TYPE.MYSQL: {
-        result = await DBManager.runSQL(
-          data.name,
-          `DESCRIBE ${data.schema}.${data.table}`
-        );
+        result = (await DBManager.runSQL(data.name, `DESCRIBE ${data.schema}.${data.table}`)).map((row: { Field: string; Type: string }) => {
+          return {
+            name: row.Field,
+            type: row.Type,
+          };
+        });
         break;
       }
 
       case DB_TYPE.ORACLE: {
-        result = await DBManager.runSQL(
-          data.name,
-          `SELECT 
-            column_name, data_type, nullable, data_default 
+        result = (
+          await DBManager.runSQL(
+            data.name,
+            `SELECT 
+            column_name, data_type
           FROM 
             all_tab_columns 
           WHERE 
-            table_name = '${data.table}' AND owner = '${data.schema}'`
-        );
+            table_name = '${data.table}' AND owner = '${data.schema}'`,
+          )
+        ).map((row: { COLUMN_NAME: string; DATA_TYPE: string }) => {
+          return {
+            name: row.COLUMN_NAME,
+            type: row.DATA_TYPE,
+          };
+        });
         break;
       }
 
@@ -597,23 +596,13 @@ export class DBManager {
           data.name,
           `
           SELECT 
-              TABLE_CATALOG AS DatabaseName, 
-              TABLE_SCHEMA AS SchemaName, 
-              TABLE_NAME AS TableName, 
-              COLUMN_NAME AS ColumnName, 
-              ORDINAL_POSITION AS OrdinalPosition, 
-              COLUMN_DEFAULT AS ColumnDefault, 
-              IS_NULLABLE AS IsNullable, 
-              DATA_TYPE AS DataType, 
-              CHARACTER_MAXIMUM_LENGTH AS CharacterMaximumLength, 
-              NUMERIC_PRECISION AS NumericPrecision, 
-              NUMERIC_SCALE AS NumericScale, 
-              DATETIME_PRECISION AS DatetimePrecision
+              COLUMN_NAME AS name, 
+              DATA_TYPE AS type
           FROM 
               ${data.schema}.INFORMATION_SCHEMA.COLUMNS
           WHERE 
               TABLE_NAME = '${data.table}';
-          `
+          `,
         );
         break;
       }
@@ -621,12 +610,12 @@ export class DBManager {
       case DB_TYPE.ODBC: {
         const db = await App.agentConfig.getDatabase(data.name);
         const connection = await odbc.connect(db.options.host);
-        result = await connection.columns(
-          data.catalog,
-          data.schema,
-          data.table,
-          null
-        );
+        result = (await connection.columns(data.catalog, data.schema, data.table, null)).map((row: { COLUMN_NAME: string; TYPE_NAME: string }) => {
+          return {
+            name: row.COLUMN_NAME,
+            type: row.TYPE_NAME,
+          };
+        });
         await connection.close();
         break;
       }
