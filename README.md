@@ -61,7 +61,8 @@ $ npm run dev
 
 # log
 ~~~bash
-$ npx pm2 logs
+$ tail -f ./logs/debug/${DATE}.log
+$ tail -f ./logs/error/${DATE}.log
 ~~~
 
 # stop
