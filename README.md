@@ -34,17 +34,17 @@ AGENT_DB_PATH="agent.db"
 ## create JWT key
 ~~~bash
 $ mkdir jwt
-$ sudo ssh-keygen -t rsa -b 4096 -m PEM -f ./jwt/jwtRS256.key
+$ ssh-keygen -t rsa -b 4096 -m PEM -f ./jwt/jwtRS256.key
 # empty passphrase - just press enter
-$ sudo openssl rsa -in ./jwt/jwtRS256.key -pubout -outform PEM -out ./jwt/jwtRS256.key.pub
+$ openssl rsa -in ./jwt/jwtRS256.key -pubout -outform PEM -out ./jwt/jwtRS256.key.pub
 ~~~
 
 ## create SSL key
 ~~~bash
 $ mkdir cert
-$ sudo openssl genrsa -out ./cert/privkey.pem 2048
-$ sudo openssl req -new -sha256 -key ./cert/privkey.pem -out ./cert/csr.pem
-$ sudo openssl x509 -req -in ./cert/csr.pem -signkey ./cert/privkey.pem -out ./cert/cert.pem
+$ openssl genrsa -out ./cert/privkey.pem 2048
+$ openssl req -new -sha256 -key ./cert/privkey.pem -out ./cert/csr.pem
+$ openssl x509 -req -in ./cert/csr.pem -signkey ./cert/privkey.pem -out ./cert/cert.pem
 ~~~
 
 ## install nodejs
