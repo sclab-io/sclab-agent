@@ -122,7 +122,7 @@ export class ManageHandler extends CommonHandler {
         }
         case '/manage/db/connectionTest': {
           const data: any = req.body;
-          if (data) {
+          if (data && data.name) {
             return await ManageHandler.dbConnectionTestWithDB(data);
           } else {
             return await ManageHandler.dbConnectionTest(req.query['name'] as string);
