@@ -1,25 +1,25 @@
-import type { API, DB, IOT, SCLABResponseData } from "../../types";
-import { logger } from "../../util/logger";
-import { CommonHandler } from "../CommonHandler";
-import { z } from "zod";
-import { DBManager } from "../../db/DBManager";
-import { App } from "../../app";
-import { IOTManager } from "../../iot/IOTManager";
-import MybatisMapper from "mybatis-mapper";
-import { USE_MYBATIS } from "../../config";
-import { DB_TYPE } from "../../types/consts";
-import { Request } from "express";
+import type { API, DB, IOT, SCLABResponseData } from '../../types';
+import { logger } from '../../util/logger';
+import { CommonHandler } from '../CommonHandler';
+import { z } from 'zod';
+import { DBManager } from '../../db/DBManager';
+import { App } from '../../app';
+import { IOTManager } from '../../iot/IOTManager';
+import MybatisMapper from 'mybatis-mapper';
+import { USE_MYBATIS } from '../../config';
+import { DB_TYPE } from '../../types/consts';
+import { Request } from 'express';
 
 const dbOptionsSchema = z.object({
   host: z.string(),
   port: z.optional(z.number()),
   user: z.optional(z.string()),
   password: z.optional(z.string()),
-  authType: z.optional(z.enum(["basic", "custom"])),
+  authType: z.optional(z.enum(['basic', 'custom'])),
   customAuth: z.optional(z.string()),
   catalog: z.optional(z.string()),
   schema: z.optional(z.string()),
-  engine: z.optional(z.enum(["presto", "trino"])),
+  engine: z.optional(z.enum(['presto', 'trino'])),
   maxPool: z.optional(z.number()),
   minPool: z.optional(z.number()),
   poolInc: z.optional(z.number()),
@@ -29,17 +29,17 @@ const dbOptionsSchema = z.object({
       ca: z.optional(z.string()),
       pfx: z.optional(z.string()),
       passphrase: z.optional(z.string()),
-    })
+    }),
   ),
 });
 const dbInsertSchema = z.object({
   name: z.string(),
-  type: z.enum(["trino", "mysql", "oracle", "sqlserver", "odbc"]),
+  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc']),
   options: dbOptionsSchema,
 });
 const dbUpdateSchema = z.object({
   name: z.string(),
-  type: z.enum(["trino", "mysql", "oracle", "sqlserver", "odbc"]),
+  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc']),
   oldName: z.string(),
   options: dbOptionsSchema,
 });
@@ -106,134 +106,125 @@ export class ManageHandler extends CommonHandler {
   static async handle(req: Request): Promise<SCLABResponseData> {
     try {
       switch (req.path) {
-        case "/manage/db/insert": {
+        case '/manage/db/insert': {
           const data: any = req.body;
           return await ManageHandler.dbInsert(data);
         }
-        case "/manage/db/update": {
+        case '/manage/db/update': {
           const data: any = req.body;
           return await ManageHandler.dbUpdate(data);
         }
-        case "/manage/db/get": {
-          return await ManageHandler.dbGet(req.query["name"] as string);
+        case '/manage/db/get': {
+          return await ManageHandler.dbGet(req.query['name'] as string);
         }
-        case "/manage/db/delete": {
-          return await ManageHandler.dbDelete(req.query["name"] as string);
+        case '/manage/db/delete': {
+          return await ManageHandler.dbDelete(req.query['name'] as string);
         }
-        case "/manage/db/connectionTest": {
-          return await ManageHandler.dbConnectionTest(
-            req.query["name"] as string
-          );
+        case '/manage/db/connectionTest': {
+          const data: any = req.body;
+          if (data) {
+            return await ManageHandler.dbConnectionTestWithDB(data);
+          } else {
+            return await ManageHandler.dbConnectionTest(req.query['name'] as string);
+          }
         }
-        case "/manage/db/sql": {
+        case '/manage/db/sql': {
           const data: any = req.body;
           return await ManageHandler.runSQL(data);
         }
-        case "/manage/db/list": {
+        case '/manage/db/list': {
           return await ManageHandler.dbList();
         }
-        case "/manage/db/catalogs": {
-          return await ManageHandler.getCatalogs(req.query["name"] as string);
+        case '/manage/db/catalogs': {
+          return await ManageHandler.getCatalogs(req.query['name'] as string);
         }
-        case "/manage/db/schemas": {
+        case '/manage/db/schemas': {
           return await ManageHandler.getSchemas({
-            name: req.query["name"] as string,
-            catalog: (req.query["catalog"] as string) || "",
+            name: req.query['name'] as string,
+            catalog: (req.query['catalog'] as string) || '',
           });
         }
-        case "/manage/db/tables": {
+        case '/manage/db/tables': {
           return await ManageHandler.getTables({
-            name: req.query["name"] as string,
-            catalog: (req.query["catalog"] as string) || "",
-            schema: (req.query["schema"] as string) || "",
+            name: req.query['name'] as string,
+            catalog: (req.query['catalog'] as string) || '',
+            schema: (req.query['schema'] as string) || '',
           });
         }
-        case "/manage/db/table": {
+        case '/manage/db/table': {
           return await ManageHandler.getTable({
-            name: req.query["name"] as string,
-            catalog: (req.query["catalog"] as string) || "",
-            schema: req.query["schema"] as string,
-            table: req.query["table"] as string,
+            name: req.query['name'] as string,
+            catalog: (req.query['catalog'] as string) || '',
+            schema: req.query['schema'] as string,
+            table: req.query['table'] as string,
           });
         }
-        case "/manage/api/insert": {
+        case '/manage/api/insert': {
           const data: any = req.body;
           return await ManageHandler.apiInsert(data);
         }
-        case "/manage/api/update": {
+        case '/manage/api/update': {
           const data: any = req.body;
           return await ManageHandler.apiUpdate(data);
         }
-        case "/manage/api/delete": {
-          return await ManageHandler.apiDelete(req.query["path"] as string);
+        case '/manage/api/delete': {
+          return await ManageHandler.apiDelete(req.query['path'] as string);
         }
-        case "/manage/api/get": {
-          return await ManageHandler.apiGet(req.query["path"] as string);
+        case '/manage/api/get': {
+          return await ManageHandler.apiGet(req.query['path'] as string);
         }
-        case "/manage/api/list": {
-          return await ManageHandler.apiList(req.query["name"] as string);
+        case '/manage/api/list': {
+          return await ManageHandler.apiList(req.query['name'] as string);
         }
-        case "/manage/iot/insert": {
+        case '/manage/iot/insert': {
           const data: any = req.body;
           return await ManageHandler.iotInsert(data);
         }
-        case "/manage/iot/update": {
+        case '/manage/iot/update': {
           const data: any = req.body;
           return await ManageHandler.iotUpdate(data);
         }
-        case "/manage/iot/delete": {
-          return await ManageHandler.iotDelete(req.query["topic"] as string);
+        case '/manage/iot/delete': {
+          return await ManageHandler.iotDelete(req.query['topic'] as string);
         }
-        case "/manage/iot/get": {
-          return await ManageHandler.iotGet(req.query["topic"] as string);
+        case '/manage/iot/get': {
+          return await ManageHandler.iotGet(req.query['topic'] as string);
         }
-        case "/manage/iot/list": {
-          return await ManageHandler.iotList(req.query["name"] as string);
+        case '/manage/iot/list': {
+          return await ManageHandler.iotList(req.query['name'] as string);
         }
       }
     } catch (e) {
       logger.error(e);
-      return { status: "error", result: e };
+      return { status: 'error', result: e };
     }
 
     return super.handle(req);
   }
 
-  static async getTable(data: {
-    name: string;
-    catalog?: string;
-    schema: string;
-    table: string;
-  }): Promise<SCLABResponseData> {
+  static async getTable(data: { name: string; catalog?: string; schema: string; table: string }): Promise<SCLABResponseData> {
     getTableSchema.parse(data);
     let result = await DBManager.getTable(data);
     return {
-      status: "ok",
+      status: 'ok',
       result,
     };
   }
 
-  static async getTables(data: {
-    name: string;
-    catalog?: string;
-    schema: string;
-  }): Promise<SCLABResponseData> {
+  static async getTables(data: { name: string; catalog?: string; schema: string }): Promise<SCLABResponseData> {
     getTablesSchema.parse(data);
     let result = await DBManager.getTables(data);
     return {
-      status: "ok",
+      status: 'ok',
       result,
     };
   }
 
-  static async getSchemas(data: {
-    name: string;
-    catalog?: string;
-  }): Promise<SCLABResponseData> {
+  static async getSchemas(data: { name: string; catalog?: string }): Promise<SCLABResponseData> {
     getSchemaSchema.parse(data);
     const result = await DBManager.getSchemas(data);
     return {
-      status: "ok",
+      status: 'ok',
       result,
     };
   }
@@ -242,7 +233,7 @@ export class ManageHandler extends CommonHandler {
     singleStringSchema.parse(dbName);
     const result = await DBManager.getCatalogs(dbName);
     return {
-      status: "ok",
+      status: 'ok',
       result,
     };
   }
@@ -250,7 +241,7 @@ export class ManageHandler extends CommonHandler {
   static async dbList(): Promise<SCLABResponseData> {
     const result = await App.agentConfig.getDBList();
     return {
-      status: "ok",
+      status: 'ok',
       result,
     };
   }
@@ -259,21 +250,16 @@ export class ManageHandler extends CommonHandler {
     singleStringSchema.parse(dbName);
     const result = await DBManager.testConnection(dbName);
     return {
-      status: result ? "ok" : "error",
-      result: result
-        ? "DB Connected"
-        : "Connection failed, please check sclab agent logs.",
+      status: result ? 'ok' : 'error',
+      result: result ? 'DB Connected' : 'Connection failed, please check sclab agent logs.',
     };
   }
 
-  static async runSQL(data: {
-    name: string;
-    sql: string;
-  }): Promise<SCLABResponseData> {
+  static async runSQL(data: { name: string; sql: string }): Promise<SCLABResponseData> {
     runSQLSchema.parse(data);
     const path = data.name;
     let sql: string;
-    if (USE_MYBATIS === "1") {
+    if (USE_MYBATIS === '1') {
       App.registerAPI(
         {
           path,
@@ -281,16 +267,16 @@ export class ManageHandler extends CommonHandler {
           SQL: data.sql,
           injectionCheck: false,
         },
-        "test"
+        'test',
       );
-      sql = MybatisMapper.getStatement("test", path, {});
+      sql = MybatisMapper.getStatement('test', path, {});
     } else {
       sql = data.sql;
     }
 
     const result = await DBManager.runSQL(data.name, sql, 10);
     return {
-      status: "ok",
+      status: 'ok',
       result,
     };
   }
@@ -300,9 +286,16 @@ export class ManageHandler extends CommonHandler {
     await App.agentConfig.insertDatabase(data);
     await DBManager.addDB(data);
     return {
-      status: "ok",
-      result: "db insert complete",
+      status: 'ok',
+      result: 'db insert complete',
     };
+  }
+
+  static async dbConnectionTestWithDB(data: DB): Promise<SCLABResponseData> {
+    await ManageHandler.dbInsert(data);
+    const result = await ManageHandler.dbConnectionTest(data.name);
+    await ManageHandler.dbDelete(data.name);
+    return result;
   }
 
   static async dbUpdate(data: DB): Promise<SCLABResponseData> {
@@ -311,8 +304,8 @@ export class ManageHandler extends CommonHandler {
     await DBManager.removeDB(data.oldName!);
     await DBManager.addDB(data);
     return {
-      status: "ok",
-      result: "db update complete",
+      status: 'ok',
+      result: 'db update complete',
     };
   }
 
@@ -320,7 +313,7 @@ export class ManageHandler extends CommonHandler {
     singleStringSchema.parse(dbName);
     const result = await App.agentConfig.getDatabase(dbName);
     return {
-      status: "ok",
+      status: 'ok',
       result,
     };
   }
@@ -330,33 +323,33 @@ export class ManageHandler extends CommonHandler {
     await App.agentConfig.deleteDatabase(dbName);
     await DBManager.removeDB(dbName);
     return {
-      status: "ok",
-      result: "db delete complete",
+      status: 'ok',
+      result: 'db delete complete',
     };
   }
 
   static async apiInsert(data: API): Promise<SCLABResponseData> {
     apiInsertSchema.parse(data);
     await App.agentConfig.insertAPI(data);
-    if (USE_MYBATIS === "1") {
+    if (USE_MYBATIS === '1') {
       App.registerAPI(data);
     }
 
     return {
-      status: "ok",
-      result: "api insert complete",
+      status: 'ok',
+      result: 'api insert complete',
     };
   }
 
   static async apiUpdate(data: API): Promise<SCLABResponseData> {
     apiUpdateSchema.parse(data);
     await App.agentConfig.updateAPI(data);
-    if (USE_MYBATIS === "1") {
+    if (USE_MYBATIS === '1') {
       App.registerAPI(data);
     }
     return {
-      status: "ok",
-      result: "api update complete",
+      status: 'ok',
+      result: 'api update complete',
     };
   }
 
@@ -364,8 +357,8 @@ export class ManageHandler extends CommonHandler {
     singleStringSchema.parse(path);
     await App.agentConfig.deleteAPI(path);
     return {
-      status: "ok",
-      result: "api delete complete",
+      status: 'ok',
+      result: 'api delete complete',
     };
   }
 
@@ -373,7 +366,7 @@ export class ManageHandler extends CommonHandler {
     singleStringSchema.parse(path);
     const result = await App.agentConfig.getAPI(path);
     return {
-      status: "ok",
+      status: 'ok',
       result,
     };
   }
@@ -382,7 +375,7 @@ export class ManageHandler extends CommonHandler {
     singleStringSchema.parse(name);
     const result = await App.agentConfig.getAPIList(name);
     return {
-      status: "ok",
+      status: 'ok',
       result,
     };
   }
@@ -392,8 +385,8 @@ export class ManageHandler extends CommonHandler {
     await App.agentConfig.insertIOT(data);
     await IOTManager.add(data);
     return {
-      status: "ok",
-      result: "iot insert complete",
+      status: 'ok',
+      result: 'iot insert complete',
     };
   }
 
@@ -403,8 +396,8 @@ export class ManageHandler extends CommonHandler {
     await App.agentConfig.updateIOT(data);
     await IOTManager.add(data);
     return {
-      status: "ok",
-      result: "iot update complete",
+      status: 'ok',
+      result: 'iot update complete',
     };
   }
 
@@ -413,8 +406,8 @@ export class ManageHandler extends CommonHandler {
     await IOTManager.remove(topic);
     await App.agentConfig.deleteIOT(topic);
     return {
-      status: "ok",
-      result: "iot delete complete",
+      status: 'ok',
+      result: 'iot delete complete',
     };
   }
 
@@ -422,7 +415,7 @@ export class ManageHandler extends CommonHandler {
     singleStringSchema.parse(topic);
     const result = await App.agentConfig.getIOT(topic);
     return {
-      status: "ok",
+      status: 'ok',
       result,
     };
   }
@@ -431,7 +424,7 @@ export class ManageHandler extends CommonHandler {
     singleStringSchema.parse(name);
     const result = await App.agentConfig.getIOTList(name);
     return {
-      status: "ok",
+      status: 'ok',
       result,
     };
   }
