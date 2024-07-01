@@ -1,9 +1,9 @@
-import mqtt from "mqtt";
-import type { MqttClient } from "mqtt";
-import type { IOT, IOTClient } from "../types";
-import { logger } from "../util/logger";
-import { DBManager } from "../db/DBManager";
-import { App } from "../app";
+import mqtt from 'mqtt';
+import type { MqttClient } from 'mqtt';
+import type { IOT, IOTClient } from '../types';
+import { logger } from '../util/logger';
+import { DBManager } from '../db/DBManager';
+import { App } from '../app';
 
 export class IOTManager {
   static clientMap: Map<string, IOTClient> = new Map();
@@ -16,7 +16,7 @@ export class IOTManager {
   static async run(iot: IOT) {
     const key = IOTManager.getClientKey(iot);
     if (!IOTManager.clientMap.has(key)) {
-      logger.error("key not found");
+      logger.error('key not found');
       return;
     }
     const client = IOTManager.clientMap.get(key)!;
@@ -58,26 +58,26 @@ export class IOTManager {
           count: 1,
           client,
         });
-        client.on("connect", () => {
-          logger.info("MQTT Server connected");
+        client.on('connect', () => {
+          logger.info('MQTT Server connected');
           IOTManager.run(iot);
           resolve();
         });
 
-        client.on("close", () => {
-          logger.info("MQTT Service close");
-          reject("connection closed");
+        client.on('close', () => {
+          logger.info('MQTT Service close');
+          reject('connection closed');
         });
 
-        client.on("disconnect", () => {
-          logger.info("MQTT Service disconnect");
+        client.on('disconnect', () => {
+          logger.info('MQTT Service disconnect');
         });
 
-        client.on("offline", () => {
-          logger.info("MQTT Service offline");
+        client.on('offline', () => {
+          logger.info('MQTT Service offline');
         });
 
-        client.on("error", (err) => {
+        client.on('error', err => {
           logger.error(err);
           IOTManager.remove(iot.topic);
           reject(err);
@@ -87,13 +87,13 @@ export class IOTManager {
   }
 
   static async remove(topic: string): Promise<void> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       // timer 중지
       clearTimeout(IOTManager.timerMap.get(topic));
       IOTManager.timerMap.delete(topic);
 
       // client 관리
-      const iot = App.agentConfig.getIOT(topic);
+      const iot = await App.agentConfig.getIOT(topic);
       const key = IOTManager.getClientKey(iot);
       if (!IOTManager.clientMap.has(key)) {
         return;
