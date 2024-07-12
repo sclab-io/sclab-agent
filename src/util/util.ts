@@ -19,7 +19,7 @@ export const isEmpty = (value: string | number | object): boolean => {
 };
 
 export const getPlaceHolders = (sql: string): string[] => {
-  const regex = /\${(\w+)}/g;
+  const regex = /[#$]{(\w+)}/g;
   const placeholders = [];
 
   let match;
@@ -31,7 +31,7 @@ export const getPlaceHolders = (sql: string): string[] => {
 };
 
 export const replaceString = (sql: string, map: { [key: string]: string }): string => {
-  const regex = /\${(\w+)}/g;
+  const regex = /[#$]{(\w+)}/g;
 
   return sql.replace(regex, (match, key) => map[key]);
 };
