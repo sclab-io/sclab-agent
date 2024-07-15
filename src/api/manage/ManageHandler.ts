@@ -9,6 +9,7 @@ import MybatisMapper from 'mybatis-mapper';
 import { USE_MYBATIS } from '../../config';
 import { DB_TYPE } from '../../types/consts';
 import { Request } from 'express';
+import { replaceString } from '../../util/util';
 
 const dbOptionsSchema = z.object({
   host: z.string(),
@@ -272,7 +273,7 @@ export class ManageHandler extends CommonHandler {
       );
       sql = MybatisMapper.getStatement('test', path, data.params || {});
     } else {
-      sql = data.sql;
+      sql = replaceString(data.sql, data.params);
     }
 
     const result = await DBManager.runSQL(data.name, sql, 10);
