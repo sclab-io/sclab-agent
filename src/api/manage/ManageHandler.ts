@@ -63,6 +63,7 @@ const getTableSchema = z.object({
 const runSQLSchema = z.object({
   name: z.string(),
   sql: z.string(),
+  params: z.optional(z.any()),
 });
 const apiInsertSchema = z.object({
   path: z.string(),
@@ -255,7 +256,7 @@ export class ManageHandler extends CommonHandler {
     };
   }
 
-  static async runSQL(data: { name: string; sql: string }): Promise<SCLABResponseData> {
+  static async runSQL(data: { name: string; sql: string; params: any }): Promise<SCLABResponseData> {
     runSQLSchema.parse(data);
     const path = data.name;
     let sql: string;
@@ -269,7 +270,7 @@ export class ManageHandler extends CommonHandler {
         },
         'test',
       );
-      sql = MybatisMapper.getStatement('test', path, {});
+      sql = MybatisMapper.getStatement('test', path, data.params || {});
     } else {
       sql = data.sql;
     }
