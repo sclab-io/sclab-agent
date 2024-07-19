@@ -1,11 +1,11 @@
-import { Database } from "sqlite3";
-import type { API, DB, IOT } from "../types";
-import { AGENT_DB_PATH } from "../config";
+import { Database } from 'sqlite3';
+import type { API, DB, IOT } from '../types';
+import { AGENT_DB_PATH } from '../config';
 
 export class AgentConfig {
   static parse(row: any): DB {
     if (!row) {
-      throw new Error("Cannot found row data");
+      throw new Error('Cannot found row data');
     }
     return {
       name: row.name,
@@ -16,7 +16,7 @@ export class AgentConfig {
 
   static parseAPI(row: any): API {
     if (!row) {
-      throw new Error("Cannot found row data");
+      throw new Error('Cannot found row data');
     }
     return {
       path: row.path,
@@ -28,7 +28,7 @@ export class AgentConfig {
 
   static parseIOT(row: any): IOT {
     if (!row) {
-      throw new Error("Cannot found row data");
+      throw new Error('Cannot found row data');
     }
     return {
       topic: row.topic,
@@ -47,7 +47,7 @@ export class AgentConfig {
 
   async getDBList(): Promise<Array<DB>> {
     return new Promise((resolve, reject) => {
-      this.db.all("SELECT * FROM DB", function (err, rows) {
+      this.db.all('SELECT * FROM DB', function (err, rows) {
         if (err) {
           reject(err);
           return;
@@ -55,7 +55,7 @@ export class AgentConfig {
         resolve(
           rows.map((row: any) => {
             return AgentConfig.parse(row);
-          })
+          }),
         );
       });
     });
@@ -63,10 +63,7 @@ export class AgentConfig {
 
   async getAPIList(name: string): Promise<Array<API>> {
     return new Promise((resolve, reject) => {
-      this.db.all("SELECT * FROM API WHERE name = ?", [name], function (
-        err,
-        rows
-      ) {
+      this.db.all('SELECT * FROM API WHERE name = ?', [name], function (err, rows) {
         if (err) {
           reject(err);
           return;
@@ -74,7 +71,7 @@ export class AgentConfig {
         resolve(
           rows.map((row: any) => {
             return AgentConfig.parseAPI(row);
-          })
+          }),
         );
       });
     });
@@ -82,48 +79,37 @@ export class AgentConfig {
 
   insertDatabase(db: DB): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.run(
-        `INSERT INTO DB (name, type, options) VALUES (?, ?, ?)`,
-        [db.name, db.type, JSON.stringify(db.options)],
-        function (err) {
-          if (err) {
-            reject(err);
-            return;
-          }
-          resolve();
+      this.db.run(`INSERT INTO DB (name, type, options) VALUES (?, ?, ?)`, [db.name, db.type, JSON.stringify(db.options)], function (err) {
+        if (err) {
+          reject(err);
+          return;
         }
-      );
+        resolve();
+      });
     });
   }
 
   updateDatabase(db: DB): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.run(
-        `UPDATE DB SET name = ?, options = ? WHERE name = ?`,
-        [db.name, JSON.stringify(db.options), db.oldName!],
-        function (err) {
-          if (err) {
-            reject(err);
-            return;
-          }
-          resolve();
+      this.db.run(`UPDATE DB SET name = ?, options = ? WHERE name = ?`, [db.name, JSON.stringify(db.options), db.oldName!], function (err) {
+        if (err) {
+          reject(err);
+          return;
         }
-      );
+        resolve();
+      });
     });
   }
 
   getDatabase(dbName: string): Promise<DB> {
     return new Promise((resolve, reject) => {
-      this.db.get(`SELECT * FROM DB WHERE name = ?`, [dbName], function (
-        err,
-        res
-      ) {
+      this.db.get(`SELECT * FROM DB WHERE name = ?`, [dbName], function (err, res) {
         if (err) {
           reject(err);
           return;
         }
         if (!res) {
-          reject("Removed database");
+          reject('Removed database');
           return;
         }
         resolve(AgentConfig.parse(res));
@@ -134,21 +120,19 @@ export class AgentConfig {
   deleteDatabase(dbName: string): Promise<void> {
     return new Promise((resolve, reject) => {
       // 데이터 베이스에 할당된 API, IOT 삭제
-      this.db.run(`DELETE FROM API WHERE name = ?`, [dbName], (err) => {
+      this.db.run(`DELETE FROM API WHERE name = ?`, [dbName], err => {
         if (err) {
           reject(err);
           return;
         }
 
-        this.db.run(`DELETE FROM IOT WHERE name = ?`, [dbName], (err) => {
+        this.db.run(`DELETE FROM IOT WHERE name = ?`, [dbName], err => {
           if (err) {
             reject(err);
             return;
           }
 
-          this.db.run(`DELETE FROM DB WHERE name = ?`, [dbName], function (
-            err
-          ) {
+          this.db.run(`DELETE FROM DB WHERE name = ?`, [dbName], function (err) {
             if (err) {
               reject(err);
               return;
@@ -168,7 +152,7 @@ export class AgentConfig {
             name    TEXT    PRIMARY KEY, 
             type    TEXT    NOT NULL, 
             options TEXT    NOT NULL
-        )`
+        )`,
         );
         this.db.run(`
             CREATE TABLE IF NOT EXISTS API (
@@ -197,13 +181,7 @@ export class AgentConfig {
     return new Promise((resolve, reject) => {
       this.db.run(
         `INSERT INTO IOT (topic, name, SQL, interval, broker) VALUES (?, ?, ?, ?, ?)`,
-        [
-          iot.topic,
-          iot.name,
-          iot.SQL,
-          iot.interval,
-          JSON.stringify(iot.broker),
-        ],
+        [iot.topic, iot.name, iot.SQL, iot.interval, JSON.stringify(iot.broker)],
         function (err) {
           if (err) {
             reject(err);
@@ -211,7 +189,7 @@ export class AgentConfig {
           }
 
           resolve();
-        }
+        },
       );
     });
   }
@@ -230,14 +208,7 @@ export class AgentConfig {
         WHERE
           topic = ?
         `,
-        [
-          iot.topic,
-          iot.name,
-          iot.SQL,
-          iot.interval,
-          JSON.stringify(iot.broker),
-          iot.oldTopic!,
-        ],
+        [iot.topic, iot.name, iot.SQL, iot.interval, JSON.stringify(iot.broker), iot.oldTopic!],
         function (err) {
           if (err) {
             reject(err);
@@ -245,14 +216,14 @@ export class AgentConfig {
           }
 
           resolve();
-        }
+        },
       );
     });
   }
 
   deleteIOT(topic: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.run("DELETE FROM IOT WHERE topic = ?", [topic], function (err) {
+      this.db.run('DELETE FROM IOT WHERE topic = ?', [topic], function (err) {
         if (err) {
           reject(err);
           return;
@@ -265,17 +236,14 @@ export class AgentConfig {
 
   getIOT(topic: string): Promise<IOT> {
     return new Promise((resolve, reject) => {
-      this.db.get("SELECT * FROM IOT WHERE topic = ?", [topic], function (
-        err,
-        res
-      ) {
+      this.db.get('SELECT * FROM IOT WHERE topic = ?', [topic], function (err, res) {
         if (err) {
           reject(err);
           return;
         }
 
         if (!res) {
-          reject("Removed topic.");
+          reject('Removed topic.');
           return;
         }
         resolve(AgentConfig.parseIOT(res));
@@ -285,10 +253,7 @@ export class AgentConfig {
 
   getIOTList(name: string): Promise<IOT[]> {
     return new Promise((resolve, reject) => {
-      this.db.all("SELECT * FROM IOT WHERE name = ?", [name], function (
-        err,
-        res
-      ) {
+      this.db.all('SELECT * FROM IOT WHERE name = ?', [name], function (err, res) {
         if (err) {
           reject(err);
           return;
@@ -297,7 +262,7 @@ export class AgentConfig {
         resolve(
           res.map((row: any) => {
             return AgentConfig.parseIOT(row);
-          })
+          }),
         );
       });
     });
@@ -305,7 +270,7 @@ export class AgentConfig {
 
   getAllIOT(): Promise<IOT[]> {
     return new Promise((resolve, reject) => {
-      this.db.all("SELECT * FROM IOT", function (err, res) {
+      this.db.all('SELECT * FROM IOT', function (err, res) {
         if (err) {
           reject(err);
           return;
@@ -314,7 +279,7 @@ export class AgentConfig {
         resolve(
           res.map((row: any) => {
             return AgentConfig.parseIOT(row);
-          })
+          }),
         );
       });
     });
@@ -332,7 +297,7 @@ export class AgentConfig {
           }
 
           resolve();
-        }
+        },
       );
     });
   }
@@ -357,14 +322,14 @@ export class AgentConfig {
           }
 
           resolve();
-        }
+        },
       );
     });
   }
 
   deleteAPI(path: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.run("DELETE FROM API WHERE path = ?", [path], function (err) {
+      this.db.run('DELETE FROM API WHERE path = ?', [path], function (err) {
         if (err) {
           reject(err);
           return;
@@ -377,17 +342,14 @@ export class AgentConfig {
 
   getAPI(path: string): Promise<API> {
     return new Promise((resolve, reject) => {
-      this.db.get("SELECT * FROM API WHERE path = ?", [path], function (
-        err,
-        res
-      ) {
+      this.db.get('SELECT * FROM API WHERE path = ?', [path], function (err, res) {
         if (err) {
           reject(err);
           return;
         }
 
         if (!res) {
-          reject("Removed API");
+          reject('Removed API');
           return;
         }
 
@@ -398,7 +360,7 @@ export class AgentConfig {
 
   getAPIListAll(): Promise<API[]> {
     return new Promise((resolve, reject) => {
-      this.db.all("SELECT * FROM API", function (err, res) {
+      this.db.all('SELECT * FROM API', function (err, res) {
         if (err) {
           reject(err);
           return;
@@ -406,7 +368,7 @@ export class AgentConfig {
         resolve(
           res.map((row: any) => {
             return AgentConfig.parseAPI(row);
-          })
+          }),
         );
       });
     });

@@ -12,6 +12,7 @@ import { Request } from 'express';
 import { replaceString } from '../../util/util';
 
 const dbOptionsSchema = z.object({
+  desc: z.optional(z.string()),
   host: z.string(),
   port: z.optional(z.number()),
   user: z.optional(z.string()),
