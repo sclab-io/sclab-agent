@@ -41,6 +41,7 @@ export interface API {
   name: string;
   SQL: string;
   injectionCheck: boolean;
+  desc?: string;
   oldPath?: string;
 }
 
@@ -55,6 +56,7 @@ export interface IOT {
     id: string;
     password: string;
   };
+  desc?: string;
   oldTopic?: string;
 }
 

@@ -23,6 +23,7 @@ export class AgentConfig {
       name: row.name,
       SQL: row.SQL,
       injectionCheck: !!row.injectionCheck,
+      desc: row.desc,
     };
   }
 
@@ -160,6 +161,7 @@ export class AgentConfig {
                 name            TEXT    NOT NULL,
                 SQL	            TEXT	  NOT NULL,
                 injectionCheck  BOOLEAN NOT NULL,
+                desc            TEXT    NULL,
                 FOREIGN KEY (name) REFERENCES DB(name)
             )
             `);
@@ -170,6 +172,7 @@ export class AgentConfig {
                 SQL	        TEXT	    NOT NULL,
                 interval    INTEGER   NOT NULL,
                 broker      TEXT      NOT NULL,
+                desc        TEXT    NULL,
                 FOREIGN KEY (name) REFERENCES DB(name)
             )
             `);
@@ -180,8 +183,8 @@ export class AgentConfig {
   insertIOT(iot: IOT): Promise<void> {
     return new Promise((resolve, reject) => {
       this.db.run(
-        `INSERT INTO IOT (topic, name, SQL, interval, broker) VALUES (?, ?, ?, ?, ?)`,
-        [iot.topic, iot.name, iot.SQL, iot.interval, JSON.stringify(iot.broker)],
+        `INSERT INTO IOT (topic, name, SQL, interval, broker, desc) VALUES (?, ?, ?, ?, ?, ?)`,
+        [iot.topic, iot.name, iot.SQL, iot.interval, JSON.stringify(iot.broker), iot.desc],
         function (err) {
           if (err) {
             reject(err);
@@ -204,11 +207,12 @@ export class AgentConfig {
           name = ?,
           SQL = ?,
           interval = ?,
-          broker = ?
+          broker = ?,
+          desc = ?
         WHERE
           topic = ?
         `,
-        [iot.topic, iot.name, iot.SQL, iot.interval, JSON.stringify(iot.broker), iot.oldTopic!],
+        [iot.topic, iot.name, iot.SQL, iot.interval, JSON.stringify(iot.broker), iot.oldTopic!, iot.desc],
         function (err) {
           if (err) {
             reject(err);
@@ -288,8 +292,8 @@ export class AgentConfig {
   insertAPI(api: API): Promise<void> {
     return new Promise((resolve, reject) => {
       this.db.run(
-        `INSERT INTO API (path, name, SQL, injectionCheck) VALUES (?, ?, ?, ?)`,
-        [api.path, api.name, api.SQL, api.injectionCheck],
+        `INSERT INTO API (path, name, SQL, injectionCheck, desc) VALUES (?, ?, ?, ?, ?)`,
+        [api.path, api.name, api.SQL, api.injectionCheck, api.desc],
         function (err) {
           if (err) {
             reject(err);
@@ -311,10 +315,11 @@ export class AgentConfig {
         path = ?, 
         name = ?, 
         SQL = ?, 
-        injectionCheck = ? 
+        injectionCheck = ?,
+        desc = ?
       WHERE path = ?
       `,
-        [api.path, api.name, api.SQL, api.injectionCheck, api.oldPath!],
+        [api.path, api.name, api.SQL, api.injectionCheck, api.oldPath!, api.desc],
         function (err) {
           if (err) {
             reject(err);

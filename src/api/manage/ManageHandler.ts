@@ -7,12 +7,10 @@ import { App } from '../../app';
 import { IOTManager } from '../../iot/IOTManager';
 import MybatisMapper from 'mybatis-mapper';
 import { USE_MYBATIS } from '../../config';
-import { DB_TYPE } from '../../types/consts';
 import { Request } from 'express';
 import { replaceString } from '../../util/util';
 
 const dbOptionsSchema = z.object({
-  desc: z.optional(z.string()),
   host: z.string(),
   port: z.optional(z.number()),
   user: z.optional(z.string()),
@@ -72,12 +70,14 @@ const apiInsertSchema = z.object({
   name: z.string(),
   SQL: z.string(),
   injectionCheck: z.boolean(),
+  desc: z.optional(z.string()),
 });
 const apiUpdateSchema = z.object({
   path: z.string(),
   name: z.string(),
   SQL: z.string(),
   injectionCheck: z.boolean(),
+  desc: z.optional(z.string()),
   oldPath: z.string(),
 });
 const iotInsertSchema = z.object({
@@ -91,6 +91,7 @@ const iotInsertSchema = z.object({
     id: z.string(),
     password: z.string(),
   }),
+  desc: z.optional(z.string()),
 });
 const iotUpdateSchema = z.object({
   topic: z.string(),
@@ -103,6 +104,7 @@ const iotUpdateSchema = z.object({
     id: z.string(),
     password: z.string(),
   }),
+  desc: z.optional(z.string()),
   oldTopic: z.string(),
 });
 export class ManageHandler extends CommonHandler {
@@ -269,6 +271,7 @@ export class ManageHandler extends CommonHandler {
           name: data.name,
           SQL: data.sql,
           injectionCheck: false,
+          desc: '',
         },
         'test',
       );
