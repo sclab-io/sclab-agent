@@ -66,8 +66,18 @@ export class App {
 
   public async init() {
     await this.initDB();
-    await this.initAPI();
-    await this.initIOT();
+    try {
+      await this.initAPI();
+    } catch (e) {
+      logger.error(e);
+    }
+
+    try {
+      await this.initIOT();
+    } catch (e) {
+      logger.error(e);
+    }
+
     this.app.all('/*', async (req: Request, res: Response, next: NextFunction) => {
       const ip = req.headers['x-forwarded-for'] || req.ip;
       logger.info(`path: ${req.path}, ip: ${ip}`);
@@ -125,7 +135,11 @@ export class App {
   public async initIOT() {
     const iotList = await App.agentConfig.getAllIOT();
     iotList.forEach(iot => {
-      IOTManager.add(iot);
+      try {
+        IOTManager.add(iot);
+      } catch (e) {
+        logger.error(e);
+      }
     });
   }
 
@@ -135,7 +149,11 @@ export class App {
     }
     const apiList = await App.agentConfig.getAPIListAll();
     apiList.forEach(api => {
-      App.registerAPI(api);
+      try {
+        App.registerAPI(api);
+      } catch (e) {
+        logger.error(e);
+      }
     });
   }
 
