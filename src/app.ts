@@ -134,13 +134,13 @@ export class App {
 
   public async initIOT() {
     const iotList = await App.agentConfig.getAllIOT();
-    iotList.forEach(iot => {
+    for (let i = 0, len = iotList.length; i < len; i++) {
       try {
-        IOTManager.add(iot);
+        await IOTManager.add(iotList[i]);
       } catch (e) {
         logger.error(e);
       }
-    });
+    }
   }
 
   public async initAPI() {
@@ -148,13 +148,13 @@ export class App {
       return;
     }
     const apiList = await App.agentConfig.getAPIListAll();
-    apiList.forEach(api => {
+    for (let i = 0, len = apiList.length; i < len; i++) {
       try {
-        App.registerAPI(api);
+        App.registerAPI(apiList[i]);
       } catch (e) {
         logger.error(e);
       }
-    });
+    }
   }
 
   public generateJWTKey() {
