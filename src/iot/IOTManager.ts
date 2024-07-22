@@ -59,26 +59,26 @@ export class IOTManager {
           client,
         });
         client.on('connect', () => {
-          logger.info('MQTT Server connected');
+          logger.info(`MQTT Server connected : ${iot.topic}`);
           IOTManager.run(iot);
           resolve();
         });
 
         client.on('close', () => {
-          logger.info('MQTT Service close');
+          logger.info(`MQTT Service close : ${iot.topic}`);
           reject('connection closed');
         });
 
         client.on('disconnect', () => {
-          logger.info('MQTT Service disconnect');
+          logger.info(`MQTT Service disconnect : ${iot.topic}`);
         });
 
         client.on('offline', () => {
-          logger.info('MQTT Service offline');
+          logger.info(`MQTT Service offline : ${iot.topic}`);
         });
 
         client.on('error', err => {
-          logger.error(err);
+          logger.error(iot.topic, err);
           IOTManager.remove(iot.topic);
           reject(err);
         });
