@@ -28,7 +28,23 @@ export class IOTManager {
 
     const result = await DBManager.runSQL(iot.name, iot.SQL);
     if (client.client.connected) {
-      client.client.publish(iot.topic, JSON.stringify(result));
+      let sendData: string;
+      if (Array.isArray(result)) {
+        if (result.length === 0) {
+          // 데이터가 없는경우 데이터 전송을 하지 않고 다음 다시 쿼리를 날릴 수 있게 함.
+          const timer = setTimeout(IOTManager.run, iot.interval * 1000, iot);
+          IOTManager.timerMap.set(iot.topic, timer);
+          return;
+        } else if (result.length === 1) {
+          sendData = JSON.stringify(result[0]);
+        } else {
+          sendData = JSON.stringify(result);
+        }
+      } else {
+        sendData = JSON.stringify(result);
+      }
+
+      client.client.publish(iot.topic, sendData);
       const timer = setTimeout(IOTManager.run, iot.interval * 1000, iot);
       IOTManager.timerMap.set(iot.topic, timer);
     }
