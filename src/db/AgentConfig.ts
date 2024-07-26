@@ -212,7 +212,7 @@ export class AgentConfig {
         WHERE
           topic = ?
         `,
-        [iot.topic, iot.name, iot.SQL, iot.interval, JSON.stringify(iot.broker), iot.oldTopic!, iot.desc],
+        [iot.topic, iot.name, iot.SQL, iot.interval, JSON.stringify(iot.broker), iot.desc, iot.oldTopic!],
         function (err) {
           if (err) {
             reject(err);
@@ -319,7 +319,7 @@ export class AgentConfig {
         desc = ?
       WHERE path = ?
       `,
-        [api.path, api.name, api.SQL, api.injectionCheck, api.oldPath!, api.desc],
+        [api.path, api.name, api.SQL, api.injectionCheck, api.desc, api.oldPath!],
         function (err) {
           if (err) {
             reject(err);
