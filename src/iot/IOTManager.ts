@@ -36,12 +36,12 @@ export class IOTManager {
           IOTManager.timerMap.set(iot.topic, timer);
           return;
         } else if (result.length === 1) {
-          sendData = JSON.stringify(result[0]);
+          sendData = JSON.stringify({ t: new Date().getTime(), ...result[0] });
         } else {
-          sendData = JSON.stringify(result);
+          sendData = JSON.stringify({ t: new Date().getTime(), ...result });
         }
       } else {
-        sendData = JSON.stringify(result);
+        sendData = JSON.stringify({ t: new Date().getTime(), ...result });
       }
 
       client.client.publish(iot.topic, sendData);
