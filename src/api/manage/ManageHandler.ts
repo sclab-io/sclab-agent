@@ -404,7 +404,7 @@ export class ManageHandler extends CommonHandler {
 
   static async iotUpdate(data: IOT): Promise<SCLABResponseData> {
     iotUpdateSchema.parse(data);
-    await IOTManager.remove(data.topic);
+    await IOTManager.remove(data.oldTopic);
     await App.agentConfig.updateIOT(data);
     await IOTManager.add(data);
     return {
