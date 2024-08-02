@@ -1,6 +1,7 @@
 import { logger, stream } from './util/logger';
 import figlet from 'figlet';
 import {
+  AGENT_DB_PATH,
   JWT_PRIVATE_KEY_PATH,
   JWT_PUBLIC_KEY_PATH,
   LD_LIBRARY_PATH,
@@ -32,6 +33,7 @@ import morgan from 'morgan';
 import { jwtMiddleware } from './middlewares/jwt.middleware';
 import helmet from 'helmet';
 import errorMiddleware from './middlewares/error.middleware';
+import { resolve } from 'path';
 
 export class App {
   public port: number | string;
@@ -64,21 +66,6 @@ export class App {
   }
 
   public async init() {
-    App.agentConfig = new AgentConfig();
-    await App.agentConfig.setupTables();
-    await this.initDB();
-    try {
-      await this.initAPI();
-    } catch (e) {
-      logger.error(e);
-    }
-
-    try {
-      await this.initIOT();
-    } catch (e) {
-      logger.error(e);
-    }
-
     this.app.all('/*', async (req: Request, res: Response, next: NextFunction) => {
       const ip = req.headers['x-forwarded-for'] || req.ip;
       logger.info(`path: ${req.path}, ip: ${ip}`);
@@ -102,35 +89,57 @@ export class App {
       }
     });
     this.listen();
+
+    await this.initDB();
+    try {
+      await this.initAPI();
+    } catch (e) {
+      logger.error(e);
+    }
+
+    try {
+      await this.initIOT();
+    } catch (e) {
+      logger.error(e);
+    }
   }
 
-  public async initDB() {
-    if (ORACLE_CLIENT_DIR) {
-      logger.info('ORACLE_CLIENT_DIR : ' + ORACLE_CLIENT_DIR);
-      try {
-        oracledb.initOracleClient({
-          libDir: ORACLE_CLIENT_DIR,
-        });
-      } catch (e) {
-        console.log(e);
+  public async initDB(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (ORACLE_CLIENT_DIR) {
+        logger.info('ORACLE_CLIENT_DIR : ' + ORACLE_CLIENT_DIR);
+        try {
+          oracledb.initOracleClient({
+            libDir: ORACLE_CLIENT_DIR,
+          });
+        } catch (e) {
+          console.log(e);
+          reject(e);
+        }
+      } else if (LD_LIBRARY_PATH) {
+        logger.info('LD_LIBRARY_PATH : ' + LD_LIBRARY_PATH);
+        try {
+          oracledb.initOracleClient();
+        } catch (e) {
+          console.log(e);
+          reject(e);
+        }
       }
-    } else if (LD_LIBRARY_PATH) {
-      logger.info('LD_LIBRARY_PATH : ' + LD_LIBRARY_PATH);
-      try {
-        oracledb.initOracleClient();
-      } catch (e) {
-        console.log(e);
-      }
-    }
 
-    const dbList = await App.agentConfig.getDBList();
-    for (let i = 0, len = dbList.length; i < len; i++) {
-      try {
-        await DBManager.addDB(dbList[i]);
-      } catch (e) {
-        logger.error(e);
-      }
-    }
+      App.agentConfig = new AgentConfig(AGENT_DB_PATH, async () => {
+        const dbList = await App.agentConfig.getDBList();
+        for (let i = 0, len = dbList.length; i < len; i++) {
+          try {
+            await DBManager.addDB(dbList[i]);
+          } catch (e) {
+            logger.error(e);
+            reject(e);
+          }
+        }
+
+        resolve();
+      });
+    });
   }
 
   public async initIOT() {

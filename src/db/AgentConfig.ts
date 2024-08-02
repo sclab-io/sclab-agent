@@ -1,6 +1,5 @@
 import { Database } from 'sqlite3';
 import type { API, DB, IOT } from '../types';
-import { AGENT_DB_PATH } from '../config';
 
 export class AgentConfig {
   static parse(row: any): DB {
@@ -41,8 +40,13 @@ export class AgentConfig {
   }
 
   public db: Database;
-  constructor(dbPath: string = AGENT_DB_PATH!) {
-    this.db = new Database(dbPath);
+  constructor(dbPath: string, callback: () => void) {
+    this.db = new Database(dbPath, async () => {
+      await this.setupTables();
+      if (callback) {
+        callback();
+      }
+    });
   }
 
   async getDBList(): Promise<Array<DB>> {
