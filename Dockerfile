@@ -1,24 +1,19 @@
-# Common build stage
-FROM node:22-alpine3.19 as common-build-stage
+FROM node:20.10.0-alpine3.18
 
 COPY . ./app
 
 WORKDIR /app
 
+RUN mkdir -p /data/logs /data/cert /data/jwt
+RUN chmod +x ./run_app.sh
 RUN npm install
 
-EXPOSE 3000
+# unixODBC 및 기타 필요 패키지 설치
+RUN apk update && \
+    apk add --no-cache unixodbc unixodbc-dev
 
-# Development build stage
-FROM common-build-stage as development-build-stage
+# EXPOSE LISTEN PORT
+EXPOSE 7890
 
-ENV NODE_ENV development
-
-CMD ["npm", "run", "dev"]
-
-# Production build stage
-FROM common-build-stage as production-build-stage
-
-ENV NODE_ENV production
-
-CMD ["npm", "run", "start"]
+# ENTRY POINT
+ENTRYPOINT ["/bin/sh", "run_app.sh"]

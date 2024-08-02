@@ -1,0 +1,26 @@
+name: Publish image to Docker Hub
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish_image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm  
+      - name: Install dependencies
+        run: npm install
+      - name: build
+        run: |
+          npm run build
+          docker build . -t sclabio/sclab-agent:latest
+      - name: publish
+        run: |
+          docker login -u sclabio -p ${{ secrets.DOCKER_HUB_TOKEN }}
+          docker push sclabio/sclab-agent:latest

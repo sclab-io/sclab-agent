@@ -1,0 +1,23 @@
+services:
+  sclab-agent:
+    image: "sclabio/sclab-agent:latest"
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "10"
+    ports:
+      - "7890:7890"
+    volumes:
+      - ./logs:/data/logs
+      - ./cert:/data/cert
+      - ./jwt:/data/jwt
+    env_file:
+      - ./.env
+    networks:
+      - sclab-network
+
+networks:
+  sclab-network:
+    external: true

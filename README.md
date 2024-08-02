@@ -4,7 +4,7 @@
 ## .env
 create .env file and paste this env vars
 ~~~bash
-LOG_DIR="../../logs"
+#LOG_DIR="./logs"
 PORT=7890
 #NODE_ENV=development
 NODE_ENV=production
