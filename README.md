@@ -6,8 +6,8 @@ create .env file and paste this env vars
 ~~~bash
 LOG_DIR="../../logs"
 PORT=7890
-NODE_ENV=development
-#NODE_ENV=production
+#NODE_ENV=development
+NODE_ENV=production
 LOG_LEVEL=debug
 
 # TOKEN
@@ -23,7 +23,7 @@ TLS_KEY=./cert/privkey.pem
 AGENT_DB_PATH="agent.db"
 
 # Use mybatis mapper
-#USE_MYBATIS=1
+USE_MYBATIS=1
 
 # ORACLE_CLIENT_DIR
 #ORACLE_CLIENT_DIR=
