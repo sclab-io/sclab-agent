@@ -43,7 +43,6 @@ export class AgentConfig {
   public db: Database;
   constructor(dbPath: string = AGENT_DB_PATH!) {
     this.db = new Database(dbPath);
-    this.setupTables();
   }
 
   async getDBList(): Promise<Array<DB>> {

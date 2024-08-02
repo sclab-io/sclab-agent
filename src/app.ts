@@ -61,10 +61,11 @@ export class App {
     logger.info(`🚀 App listening on the port ${this.port}`);
     this.generateJWTKey();
     this.initializeMiddlewares();
-    App.agentConfig = new AgentConfig();
   }
 
   public async init() {
+    App.agentConfig = new AgentConfig();
+    await App.agentConfig.setupTables();
     await this.initDB();
     try {
       await this.initAPI();
