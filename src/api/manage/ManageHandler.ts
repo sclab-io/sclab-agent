@@ -298,10 +298,20 @@ export class ManageHandler extends CommonHandler {
   }
 
   static async dbConnectionTestWithDB(data: DB): Promise<SCLABResponseData> {
-    await ManageHandler.dbInsert(data);
+    data.name = data.name + new Date().getTime();
+    try {
+      const db = await App.agentConfig.getDatabase(data.name);
+      if (db) {
+        await ManageHandler.dbDelete(data.name);
+      }
+    } catch (e) {
+      if (e === 'Removed database') await ManageHandler.dbInsert(data);
+    }
+
     let result: SCLABResponseData;
     try {
       result = await ManageHandler.dbConnectionTest(data.name);
+      await ManageHandler.dbDelete(data.name);
     } catch (e) {
       await ManageHandler.dbDelete(data.name);
       throw e;
