@@ -1,12 +1,12 @@
-import { Request } from "express";
-import { App } from "../../app";
-import { USE_MYBATIS } from "../../config";
-import { DBManager } from "../../db/DBManager";
-import type { SCLABResponseData } from "../../types";
-import { logger } from "../../util/logger";
-import { hasSql, replaceString } from "../../util/util";
-import { CommonHandler } from "../CommonHandler";
-import MybatisMapper from "mybatis-mapper";
+import { Request } from 'express';
+import { App } from '../../app';
+import { USE_MYBATIS } from '../../config';
+import { DBManager } from '../../db/DBManager';
+import type { SCLABResponseData } from '../../types';
+import { logger } from '../../util/logger';
+import { hasSql, replaceString } from '../../util/util';
+import { CommonHandler } from '../CommonHandler';
+import MybatisMapper from 'mybatis-mapper';
 
 export class APIHandler extends CommonHandler {
   static async handle(req: Request): Promise<SCLABResponseData> {
@@ -28,7 +28,7 @@ export class APIHandler extends CommonHandler {
           if (reqData && api.injectionCheck) {
             if (hasSql(reqData)) {
               return {
-                status: "error",
+                status: 'error',
                 result: `SQL injection detect with query param: ${paramKey}, ${reqData}`,
               };
             }
@@ -43,16 +43,16 @@ export class APIHandler extends CommonHandler {
       }
 
       let sql: string;
-      if (USE_MYBATIS === "1") {
-        sql = MybatisMapper.getStatement("api", path, valueObj);
+      if (USE_MYBATIS === '1') {
+        sql = MybatisMapper.getStatement('api', path, valueObj);
       } else {
         sql = replaceString(api.SQL, valueObj);
       }
 
       const result = await DBManager.runSQL(api.name, sql, 10);
-      return { status: "ok", result };
+      return { status: 'ok', result };
     } catch (e) {
-      return { status: "error", result: e };
+      return { status: 'error', result: e };
     }
   }
 }

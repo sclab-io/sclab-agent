@@ -59,6 +59,7 @@ if (logDir) {
   });
 } else {
   logger = winston.createLogger({
+    level: LOG_LEVEL || 'debug',
     format: winston.format.combine(
       winston.format.timestamp({
         format: 'YYYY-MM-DD HH:mm:ss',
