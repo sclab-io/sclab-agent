@@ -1,5 +1,6 @@
 import { Database } from 'sqlite3';
 import type { API, DB, IOT } from '../types';
+import { logger } from '@/util/logger';
 
 export class AgentConfig {
   static parse(row: any): DB {
@@ -40,16 +41,17 @@ export class AgentConfig {
   }
 
   public db: Database;
-  constructor(dbPath: string, callback: () => void) {
+  constructor(dbPath: string, callback: (err?: any) => void) {
     this.db = new Database(dbPath, async () => {
       try {
         await this.setupTables();
+        if (callback) {
+          callback();
+        }
       } catch (e) {
-        console.error(e);
-      }
-
-      if (callback) {
-        callback();
+        if (callback) {
+          callback(e);
+        }
       }
     });
   }
@@ -155,15 +157,24 @@ export class AgentConfig {
 
   setupTables(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.exec(`PRAGMA foreign_keys = ON`, () => {
+      this.db.exec(`PRAGMA foreign_keys = ON`, err => {
+        if (err) {
+          reject(err);
+          return;
+        }
         this.db.run(
           `CREATE TABLE IF NOT EXISTS DB ( 
             name    TEXT    PRIMARY KEY, 
             type    TEXT    NOT NULL, 
             options TEXT    NOT NULL
         )`,
-        );
-        this.db.run(`
+          err => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            this.db.run(
+              `
             CREATE TABLE IF NOT EXISTS API (
                 path	          TEXT	  PRIMARY KEY,
                 name            TEXT    NOT NULL,
@@ -172,21 +183,38 @@ export class AgentConfig {
                 desc            TEXT    NULL,
                 FOREIGN KEY (name) REFERENCES DB(name)
             )
-            `);
-        this.db.run(`
-            CREATE TABLE IF NOT EXISTS IOT (
-                topic	      TEXT	    PRIMARY KEY,
-                name        TEXT      NOT NULL,
-                SQL	        TEXT	    NOT NULL,
-                interval    INTEGER   NOT NULL,
-                broker      TEXT      NOT NULL,
-                desc        TEXT    NULL,
-                FOREIGN KEY (name) REFERENCES DB(name)
-            )
-            `);
-      });
+            `,
+              err => {
+                if (err) {
+                  reject(err);
+                  return;
+                }
+                this.db.run(
+                  `
+                CREATE TABLE IF NOT EXISTS IOT (
+                    topic	      TEXT	    PRIMARY KEY,
+                    name        TEXT      NOT NULL,
+                    SQL	        TEXT	    NOT NULL,
+                    interval    INTEGER   NOT NULL,
+                    broker      TEXT      NOT NULL,
+                    desc        TEXT    NULL,
+                    FOREIGN KEY (name) REFERENCES DB(name)
+                )
+                `,
+                  err => {
+                    if (err) {
+                      reject(err);
+                      return;
+                    }
 
-      resolve();
+                    resolve();
+                  },
+                );
+              },
+            );
+          },
+        );
+      });
     });
   }
 
