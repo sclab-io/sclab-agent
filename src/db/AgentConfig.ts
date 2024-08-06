@@ -42,7 +42,12 @@ export class AgentConfig {
   public db: Database;
   constructor(dbPath: string, callback: () => void) {
     this.db = new Database(dbPath, async () => {
-      await this.setupTables();
+      try {
+        await this.setupTables();
+      } catch (e) {
+        console.error(e);
+      }
+
       if (callback) {
         callback();
       }
@@ -180,6 +185,8 @@ export class AgentConfig {
             )
             `);
       });
+
+      resolve();
     });
   }
 

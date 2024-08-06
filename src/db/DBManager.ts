@@ -419,6 +419,7 @@ export class DBManager {
 
   static async getSchemas(data: { name: string; catalog?: string }): Promise<Schema[]> {
     const dbClient = DBManager.getClient(data.name);
+    const db = await App.agentConfig.getDatabase(data.name);
     let result: any;
     switch (dbClient.type) {
       case DB_TYPE.TRINO: {
@@ -467,6 +468,12 @@ export class DBManager {
           result: 'ODBC does not support retrieving schemas.',
         };
       }
+    }
+
+    if (db.options.database) {
+      result = result.filter((row: { name: string }) => {
+        return db.options.database && row.name === db.options.database;
+      });
     }
 
     return result;
