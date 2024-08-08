@@ -34,12 +34,12 @@ const dbOptionsSchema = z.object({
 });
 const dbInsertSchema = z.object({
   name: z.string(),
-  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc']),
+  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'postgres']),
   options: dbOptionsSchema,
 });
 const dbUpdateSchema = z.object({
   name: z.string(),
-  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc']),
+  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'postgres']),
   oldName: z.string(),
   options: dbOptionsSchema,
 });
@@ -201,6 +201,12 @@ export class ManageHandler extends CommonHandler {
       }
     } catch (e) {
       logger.error(e);
+      if (e.code === 'SQLITE_CONSTRAINT') {
+        const error = JSON.stringify(e);
+        const errData = JSON.parse(error);
+        errData.message = 'Duplicate data';
+        e = errData;
+      }
       return { status: 'error', result: e };
     }
 

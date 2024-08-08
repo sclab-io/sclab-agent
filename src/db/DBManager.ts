@@ -9,6 +9,7 @@ import sql from 'mssql';
 import { MSSQL_IDLE_TIMEOUT_MS } from '../config';
 import odbc from 'odbc';
 import { App } from '../app';
+import postgres from 'pg';
 
 // BigInt bug fix to string
 (BigInt.prototype as any).toJSON = function () {
@@ -18,7 +19,7 @@ import { App } from '../app';
   return parseInt(this.toString(), 10);
 };
 interface DBClient {
-  client: presto.Client | mariadb.Pool | oracledb.Pool | sql.ConnectionPool | odbc.Pool;
+  client: presto.Client | mariadb.Pool | oracledb.Pool | sql.ConnectionPool | odbc.Pool | postgres.Pool;
   type: string;
 }
 
@@ -64,6 +65,20 @@ export class DBManager {
           ssl: db.options.ssl || false,
         });
         DBManager.dbMap.set(db.name, { client: DBPool, type: db.type });
+        break;
+      }
+
+      case DB_TYPE.POSTGRES: {
+        const postgresSQL = new postgres.Pool({
+          host: db.options.host,
+          port: db.options.port,
+          user: db.options.user,
+          password: db.options.password,
+          database: db.options.database,
+          ssl: db.options.ssl || false,
+          max: db.options.maxPool || 10,
+        });
+        DBManager.dbMap.set(db.name, { client: postgresSQL, type: db.type });
         break;
       }
 
@@ -148,6 +163,11 @@ export class DBManager {
         break;
       }
 
+      case DB_TYPE.POSTGRES: {
+        await (dbClient.client as postgres.Pool).end();
+        break;
+      }
+
       case DB_TYPE.ORACLE: {
         await (dbClient.client as oracledb.Pool).close();
         break;
@@ -213,6 +233,19 @@ export class DBManager {
               reject(false);
             } finally {
               await conn.release();
+            }
+            break;
+          }
+
+          case DB_TYPE.POSTGRES: {
+            const client = dbClient.client as postgres.Pool;
+            try {
+              await client.query(`select 1`);
+              resolve(true);
+            } catch (e) {
+              console.error(e);
+              logger.info(`Cannot connect to PostgreSQL. Please check your config.`);
+              reject(false);
             }
             break;
           }
@@ -360,6 +393,17 @@ export class DBManager {
             break;
           }
 
+          case DB_TYPE.POSTGRES: {
+            const client = dbClient.client as postgres.Pool;
+            try {
+              const result = await client.query(sql);
+              resolve(result.rows);
+            } catch (e) {
+              reject(e);
+            }
+            break;
+          }
+
           case DB_TYPE.ORACLE: {
             const client = dbClient.client as oracledb.Pool;
             let conn: oracledb.Connection = await client.getConnection();
@@ -406,15 +450,32 @@ export class DBManager {
 
   static async getCatalogs(dbName: string): Promise<Catalog[]> {
     const dbClient = DBManager.getClient(dbName);
-    if (dbClient.type !== DB_TYPE.TRINO) {
-      throw new Error('Retrieving catalogs is only supported in Trino or Presto.');
+    switch (dbClient.type) {
+      case DB_TYPE.TRINO: {
+        const result = await DBManager.runSQL(dbName, 'SHOW CATALOGS');
+        return result.map((row: { Catalog: string }) => {
+          return {
+            name: row.Catalog,
+          };
+        });
+      }
+      case DB_TYPE.POSTGRES: {
+        const result = await DBManager.runSQL(
+          dbName,
+          `
+          SELECT datname FROM pg_database WHERE datistemplate = false
+          `,
+        );
+        return result.map((row: { datname: string }) => {
+          return {
+            name: row.datname,
+          };
+        });
+      }
+      default: {
+        throw new Error('Retrieving catalogs is only supported in Trino or Presto.');
+      }
     }
-    const result = await DBManager.runSQL(dbName, 'SHOW CATALOGS');
-    return result.map((row: { Catalog: string }) => {
-      return {
-        name: row.Catalog,
-      };
-    });
   }
 
   static async getSchemas(data: { name: string; catalog?: string }): Promise<Schema[]> {
@@ -435,6 +496,22 @@ export class DBManager {
         result = (await DBManager.runSQL(data.name, 'SHOW DATABASES')).map((row: { Database: string }) => {
           return {
             name: row.Database,
+          };
+        });
+        break;
+      }
+
+      case DB_TYPE.POSTGRES: {
+        result = (
+          await DBManager.runSQL(
+            data.name,
+            `
+          SELECT nspname FROM pg_namespace;
+          `,
+          )
+        ).map((row: { nspname: string }) => {
+          return {
+            name: row.nspname,
           };
         });
         break;
@@ -509,6 +586,24 @@ export class DBManager {
         break;
       }
 
+      case DB_TYPE.POSTGRES: {
+        result = (
+          await DBManager.runSQL(
+            data.name,
+            `
+          SELECT table_name
+          FROM information_schema.tables
+          WHERE table_schema = '${data.schema}'
+          `,
+          )
+        ).map((row: any) => {
+          return {
+            name: row['table_name'],
+          };
+        });
+        break;
+      }
+
       case DB_TYPE.ORACLE: {
         result = (await DBManager.runSQL(data.name, `SELECT table_name FROM all_tables WHERE owner = '${data.schema}'`)).map(
           (row: { TABLE_NAME: string }) => {
@@ -573,6 +668,30 @@ export class DBManager {
           return {
             name: row.Field,
             type: row.Type,
+          };
+        });
+        break;
+      }
+
+      case DB_TYPE.POSTGRES: {
+        result = (
+          await DBManager.runSQL(
+            data.name,
+            `
+          SELECT 
+              column_name,
+              data_type
+          FROM 
+              information_schema.columns
+          WHERE 
+              table_name = '${data.table}'
+              AND table_schema = '${data.schema}'
+          `,
+          )
+        ).map((row: { column_name: string; data_type: string }) => {
+          return {
+            name: row.column_name,
+            type: row.data_type,
           };
         });
         break;

@@ -54,6 +54,7 @@
     "packages/*"
   ],
   "dependencies": {
+    "@types/pg": "^8.11.6",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.6",
     "dotenv": "^16.4.5",
@@ -70,6 +71,7 @@
     "mybatis-mapper": "workspace:*",
     "odbc": "^2.4.8",
     "oracledb": "^6.5.1",
+    "pg": "^8.12.0",
     "presto-client": "^1.1.0",
     "sqlite3": "^5.1.7",
     "winston": "^3.13.0",
