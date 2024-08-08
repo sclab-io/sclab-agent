@@ -83,6 +83,13 @@ export class App {
             result: 'Authentication complete.',
           };
         }
+
+        if (data.status === 'error') {
+          const error = JSON.stringify(data.result);
+          const errData = JSON.parse(error);
+          errData.message = data.result.message;
+          data.result = errData;
+        }
         this.response(res, data);
       } catch (e) {
         this.error(res, e);

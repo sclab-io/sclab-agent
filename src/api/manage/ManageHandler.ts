@@ -201,12 +201,6 @@ export class ManageHandler extends CommonHandler {
       }
     } catch (e) {
       logger.error(e);
-      if (e.code === 'SQLITE_CONSTRAINT') {
-        const error = JSON.stringify(e);
-        const errData = JSON.parse(error);
-        errData.message = 'Duplicate data';
-        e = errData;
-      }
       return { status: 'error', result: e };
     }
 

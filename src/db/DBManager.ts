@@ -450,8 +450,12 @@ export class DBManager {
 
   static async getCatalogs(dbName: string): Promise<Catalog[]> {
     const dbClient = DBManager.getClient(dbName);
+    const db = await App.agentConfig.getDatabase(dbName);
     switch (dbClient.type) {
       case DB_TYPE.TRINO: {
+        if (db.options.catalog) {
+          return [{ name: db.options.catalog }];
+        }
         const result = await DBManager.runSQL(dbName, 'SHOW CATALOGS');
         return result.map((row: { Catalog: string }) => {
           return {
@@ -460,6 +464,9 @@ export class DBManager {
         });
       }
       case DB_TYPE.POSTGRES: {
+        if (db.options.database) {
+          return [{ name: db.options.database }];
+        }
         const result = await DBManager.runSQL(
           dbName,
           `
@@ -484,6 +491,9 @@ export class DBManager {
     let result: any;
     switch (dbClient.type) {
       case DB_TYPE.TRINO: {
+        if (db.options.schema) {
+          return [{ name: db.options.schema }];
+        }
         result = (await DBManager.runSQL(data.name, `SHOW SCHEMAS FROM ${data.catalog}`)).map((row: { Schema: string }) => {
           return {
             name: row.Schema,
@@ -493,6 +503,9 @@ export class DBManager {
       }
 
       case DB_TYPE.MYSQL: {
+        if (db.options.database) {
+          return [{ name: db.options.database }];
+        }
         result = (await DBManager.runSQL(data.name, 'SHOW DATABASES')).map((row: { Database: string }) => {
           return {
             name: row.Database,
@@ -502,11 +515,16 @@ export class DBManager {
       }
 
       case DB_TYPE.POSTGRES: {
+        if (db.options.schema) {
+          return [{ name: db.options.schema }];
+        }
         result = (
           await DBManager.runSQL(
             data.name,
             `
-          SELECT nspname FROM pg_namespace;
+          SELECT nspname FROM pg_namespace
+          WHERE nspname NOT LIKE 'pg_%'
+          AND nspname <> 'information_schema'
           `,
           )
         ).map((row: { nspname: string }) => {
@@ -545,12 +563,6 @@ export class DBManager {
           result: 'ODBC does not support retrieving schemas.',
         };
       }
-    }
-
-    if (db.options.database) {
-      result = result.filter((row: { name: string }) => {
-        return db.options.database && row.name === db.options.database;
-      });
     }
 
     return result;
