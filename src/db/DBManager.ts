@@ -209,7 +209,7 @@ export class DBManager {
                   return;
                 }
                 logger.info('Presto/Trino connection success');
-                reject(error);
+                resolve(true);
               },
               error: (error: any) => {
                 console.error(error);
