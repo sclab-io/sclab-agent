@@ -254,10 +254,12 @@ export class ManageHandler extends CommonHandler {
   static async dbConnectionTest(dbName: string): Promise<SCLABResponseData> {
     singleStringSchema.parse(dbName);
     const result = await DBManager.testConnection(dbName);
-    return {
-      status: result ? 'ok' : 'error',
-      result: result ? 'DB Connected' : 'Connection failed, please check sclab agent logs.',
-    };
+    if (result) {
+      return {
+        status: 'ok',
+        result: 'DB Connected',
+      };
+    }
   }
 
   static async runSQL(data: { name: string; sql: string; params: any }): Promise<SCLABResponseData> {

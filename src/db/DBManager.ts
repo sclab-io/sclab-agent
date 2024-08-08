@@ -209,12 +209,12 @@ export class DBManager {
                   return;
                 }
                 logger.info('Presto/Trino connection success');
-                resolve(true);
+                reject(error);
               },
               error: (error: any) => {
                 console.error(error);
                 logger.info(`Cannot connect to Presto/Trino. Please check your config.`);
-                reject(false);
+                reject(error);
               },
             });
 
@@ -223,17 +223,22 @@ export class DBManager {
 
           case DB_TYPE.MYSQL: {
             const client = dbClient.client as mariadb.Pool;
-            const conn = await client.getConnection();
             try {
-              await conn.query('select 1');
-              resolve(true);
+              const conn = await client.getConnection();
+              try {
+                await conn.query('select 1');
+                resolve(true);
+              } catch (e) {
+                console.error(e);
+                logger.info(`Cannot connect to MySQL. Please check your config.`);
+                reject(e);
+              } finally {
+                await conn.release();
+              }
             } catch (e) {
-              console.error(e);
-              logger.info(`Cannot connect to MySQL. Please check your config.`);
-              reject(false);
-            } finally {
-              await conn.release();
+              reject(e);
             }
+
             break;
           }
 
@@ -245,7 +250,7 @@ export class DBManager {
             } catch (e) {
               console.error(e);
               logger.info(`Cannot connect to PostgreSQL. Please check your config.`);
-              reject(false);
+              reject(e);
             }
             break;
           }
@@ -259,7 +264,7 @@ export class DBManager {
             } catch (e) {
               console.error(e);
               logger.info(`Cannot connect to ORACLE. Please check your config.`);
-              reject(false);
+              reject(e);
             } finally {
               await conn.close();
             }
@@ -274,7 +279,7 @@ export class DBManager {
             } catch (e) {
               console.error(e);
               logger.info(`Cannot connect to SQL Server. Please check your config.`);
-              reject(false);
+              reject(e);
             }
             break;
           }
@@ -290,7 +295,7 @@ export class DBManager {
             } catch (e) {
               console.error(e);
               logger.info(`Cannot connect to ODBC. Please check your config.`);
-              reject(false);
+              reject(e);
             }
             break;
           }
