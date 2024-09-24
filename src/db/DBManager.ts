@@ -543,6 +543,17 @@ export class DBManager {
         if (db.options.database) {
           return [{ name: db.options.database }];
         }
+        const result = await DBManager.runSQL(
+          dbName,
+          `
+          SELECT DATABASE_NAME FROM M_DATABASES
+          `,
+        );
+        return result.map((row: { DATABASE_NAME: string }) => {
+          return {
+            name: row.DATABASE_NAME,
+          };
+        });
       }
       default: {
         throw new Error('Retrieving catalogs is only supported in Trino or Presto.');
