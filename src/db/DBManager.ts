@@ -10,6 +10,7 @@ import { MSSQL_IDLE_TIMEOUT_MS } from '../config';
 import odbc from 'odbc';
 import { App } from '../app';
 import postgres from 'pg';
+import hana from '@sap/hana-client';
 
 // BigInt bug fix to string
 (BigInt.prototype as any).toJSON = function () {
@@ -19,7 +20,7 @@ import postgres from 'pg';
   return parseInt(this.toString(), 10);
 };
 interface DBClient {
-  client: presto.Client | mariadb.Pool | oracledb.Pool | sql.ConnectionPool | odbc.Pool | postgres.Pool;
+  client: presto.Client | mariadb.Pool | oracledb.Pool | sql.ConnectionPool | odbc.Pool | postgres.Pool | hana.ConnectionPool;
   type: string;
 }
 
@@ -64,6 +65,20 @@ export class DBManager {
           allowPublicKeyRetrieval: !!db.options.allowPublicKeyRetrieval,
           ssl: db.options.ssl || false,
         });
+        DBManager.dbMap.set(db.name, { client: DBPool, type: db.type });
+        break;
+      }
+
+      case DB_TYPE.HANA: {
+        const DBPool = hana.createPool(
+          {
+            host: db.options.host,
+            port: db.options.port,
+            user: db.options.user,
+            password: db.options.password,
+          },
+          { max: db.options.maxPool || 10 },
+        );
         DBManager.dbMap.set(db.name, { client: DBPool, type: db.type });
         break;
       }
@@ -163,6 +178,11 @@ export class DBManager {
         break;
       }
 
+      case DB_TYPE.HANA: {
+        (dbClient.client as hana.ConnectionPool).clear();
+        break;
+      }
+
       case DB_TYPE.POSTGRES: {
         await (dbClient.client as postgres.Pool).end();
         break;
@@ -234,6 +254,27 @@ export class DBManager {
                 reject(e);
               } finally {
                 await conn.release();
+              }
+            } catch (e) {
+              reject(e);
+            }
+
+            break;
+          }
+
+          case DB_TYPE.HANA: {
+            const client = dbClient.client as hana.ConnectionPool;
+            try {
+              const conn = client.getConnection();
+              try {
+                await conn.exec('SELECT 1 FROM DUMMY');
+                resolve(true);
+              } catch (e) {
+                console.error(e);
+                logger.info(`Cannot connect to SAP/HANA. Please check your config.`);
+                reject(e);
+              } finally {
+                conn.clean();
               }
             } catch (e) {
               reject(e);
@@ -398,6 +439,20 @@ export class DBManager {
             break;
           }
 
+          case DB_TYPE.HANA: {
+            const client = dbClient.client as hana.ConnectionPool;
+            const conn = client.getConnection();
+            try {
+              const rows = await conn.exec(sql);
+              resolve(rows);
+            } catch (e) {
+              reject(e);
+            } finally {
+              conn.clean();
+            }
+            break;
+          }
+
           case DB_TYPE.POSTGRES: {
             const client = dbClient.client as postgres.Pool;
             try {
@@ -484,6 +539,11 @@ export class DBManager {
           };
         });
       }
+      case DB_TYPE.HANA: {
+        if (db.options.database) {
+          return [{ name: db.options.database }];
+        }
+      }
       default: {
         throw new Error('Retrieving catalogs is only supported in Trino or Presto.');
       }
@@ -516,6 +576,20 @@ export class DBManager {
             name: row.Database,
           };
         });
+        break;
+      }
+
+      case DB_TYPE.HANA: {
+        result = (await DBManager.runSQL(data.name, 'SELECT SCHEMA_NAME FROM SCHEMAS'))
+          // hide system schema
+          // .filter((row: { SCHEMA_NAME: string }) => {
+          //   return row.SCHEMA_NAME.startsWith('_') === false;
+          // })
+          .map((row: { SCHEMA_NAME: string }) => {
+            return {
+              name: row.SCHEMA_NAME,
+            };
+          });
         break;
       }
 
@@ -603,6 +677,17 @@ export class DBManager {
         break;
       }
 
+      case DB_TYPE.HANA: {
+        result = (await DBManager.runSQL(data.name, `SELECT TABLE_NAME FROM TABLES WHERE SCHEMA_NAME = '${data.schema}'`)).map(
+          (row: { TABLE_NAME: string }) => {
+            return {
+              name: row.TABLE_NAME,
+            };
+          },
+        );
+        break;
+      }
+
       case DB_TYPE.POSTGRES: {
         result = (
           await DBManager.runSQL(
@@ -685,6 +770,25 @@ export class DBManager {
           return {
             name: row.Field,
             type: row.Type,
+          };
+        });
+        break;
+      }
+
+      case DB_TYPE.HANA: {
+        result = (
+          await DBManager.runSQL(
+            data.name,
+            `
+          SELECT COLUMN_NAME, DATA_TYPE_NAME 
+          FROM SYS.COLUMNS 
+          WHERE SCHEMA_NAME = '${data.schema}' AND TABLE_NAME = '${data.table}'
+        `,
+          )
+        ).map((row: { COLUMN_NAME: string; DATA_TYPE_NAME: string }) => {
+          return {
+            name: row.COLUMN_NAME,
+            type: row.DATA_TYPE_NAME,
           };
         });
         break;
