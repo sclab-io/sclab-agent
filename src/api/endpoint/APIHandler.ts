@@ -50,6 +50,12 @@ export class APIHandler extends CommonHandler {
       }
 
       const result = await DBManager.runSQL(api.name, sql, 10);
+
+      if (req.headers && req.headers['total-count']) {
+        const countResult = await DBManager.runSQL(api.name, `SELECT COUNT(*) AS count FROM (${DBManager.removeLimitClause(sql)})`, 1);
+        return { status: 'ok', result, totalCount: countResult[0].count };
+      }
+
       return { status: 'ok', result };
     } catch (e) {
       return { status: 'error', result: e };

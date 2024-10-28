@@ -351,6 +351,10 @@ export class DBManager {
     return /\bSELECT\b[\s\S]*?\bLIMIT\b\s+\d+/i.test(sql) || /SELECT\s+TOP\s+\d+/i.test(sql);
   }
 
+  static removeLimitClause(sql: string): string {
+    return sql.replace(/\sLIMIT\s+\d+\s*;?$/i, '');
+  }
+
   static ensureLimitClause(sql: string, limit: number = 10, dbType?: string): string {
     if (DBManager.hasLimitClause(sql)) {
       return sql;

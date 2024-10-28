@@ -7,6 +7,7 @@ export interface SCLABRequestHeaders {
 export interface SCLABResponseData {
   status: 'ok' | 'error';
   result: any;
+  totalCount?: number;
 }
 
 export interface DB {
