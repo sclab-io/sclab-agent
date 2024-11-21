@@ -1,6 +1,8 @@
 services:
   sclab-agent:
-    image: "sclabio/sclab-agent:latest"
+    build:
+      context: ./
+      dockerfile: Dockerfile
     restart: always
     logging:
       driver: "json-file"
@@ -15,9 +17,8 @@ services:
       - ./jwt:/data/jwt
     env_file:
       - ./.env
-    networks:
-      - sclab-network
-
-networks:
-  sclab-network:
-    external: true
+    environment:
+      - JWT_PRIVATE_KEY_PATH=/data/jwt/jwtRS256.key
+      - JWT_PUBLIC_KEY_PATH=/data/jwt/jwtRS256.key.pub
+      - TLS_CERT=/data/cert/cert.pem
+      - TLS_KEY=/data/cert/privkey.pem
