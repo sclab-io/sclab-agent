@@ -191,7 +191,9 @@ export class DBManager {
         await oracledb.createPool({
           user: db.options.user,
           password: db.options.password,
-          connectString: tunnelAddressInfo ? `${tunnelAddressInfo.address}:${tunnelAddressInfo.port}` : db.options.host,
+          connectString: tunnelAddressInfo
+            ? `${tunnelAddressInfo.address}:${tunnelAddressInfo.port}`
+            : `${db.options.host}:${db.options.port || 1521}`,
           poolIncrement: db.options.poolInc || 1,
           poolMax: db.options.maxPool || 10,
           poolMin: db.options.minPoll || 4,
