@@ -11,7 +11,7 @@ import odbc from 'odbc';
 import { App } from '../app';
 import postgres from 'pg';
 import hana from '@sap/hana-client';
-import { createTunnel, ForwardOptions, ServerOptions, SshOptions } from 'tunnel-ssh';
+import { createTunnel, ForwardOptions, ServerOptions, TunnelOptions, SshOptions } from 'tunnel-ssh';
 import { AddressInfo, Server } from 'net';
 
 // BigInt bug fix to string
@@ -37,14 +37,25 @@ export class DBManager {
     sshPassword: string,
     targetHost: string,
     targetPort: number,
+    sshPrivateKey: string | null = null,
   ): Promise<{ tunnelServer: Server; tunnelAddressInfo: AddressInfo }> {
-    const tunnelOptions = { autoClose: false, reconnectOnError: true };
-    const sshOptions = {
+    const tunnelOptions: TunnelOptions = { autoClose: false, reconnectOnError: true };
+    const sshOptions: SshOptions = {
       host: sshHost,
       port: sshPort || 22,
       username: sshUser,
       password: sshPassword,
     };
+
+    if (sshPrivateKey) {
+      sshOptions.privateKey = sshPrivateKey;
+      if (sshPassword) {
+        sshOptions.passphrase = sshPassword;
+      }
+
+      delete sshOptions.password;
+    }
+
     const forwardOptions: ForwardOptions = {
       dstAddr: targetHost,
       dstPort: targetPort,
@@ -58,7 +69,7 @@ export class DBManager {
     let tunnelServer: Server | undefined;
     switch (db.type) {
       case DB_TYPE.TRINO: {
-        if (db.options.sshHost && db.options.sshPort && db.options.sshUser && db.options.sshPassword) {
+        if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
           const tunnel = await DBManager.createTunnel(
             db.options.sshHost,
             db.options.sshPort,
@@ -66,6 +77,7 @@ export class DBManager {
             db.options.sshPassword,
             db.options.host,
             db.options.port,
+            db.options.sshPrivateKey || null,
           );
           tunnelAddressInfo = tunnel.tunnelAddressInfo;
           tunnelServer = tunnel.tunnelServer;
@@ -97,7 +109,7 @@ export class DBManager {
       }
 
       case DB_TYPE.MYSQL: {
-        if (db.options.sshHost && db.options.sshPort && db.options.sshUser && db.options.sshPassword) {
+        if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
           const tunnel = await DBManager.createTunnel(
             db.options.sshHost,
             db.options.sshPort,
@@ -105,6 +117,7 @@ export class DBManager {
             db.options.sshPassword,
             db.options.host,
             db.options.port,
+            db.options.sshPrivateKey || null,
           );
           tunnelAddressInfo = tunnel.tunnelAddressInfo;
           tunnelServer = tunnel.tunnelServer;
@@ -124,7 +137,7 @@ export class DBManager {
       }
 
       case DB_TYPE.HANA: {
-        if (db.options.sshHost && db.options.sshPort && db.options.sshUser && db.options.sshPassword) {
+        if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
           const tunnel = await DBManager.createTunnel(
             db.options.sshHost,
             db.options.sshPort,
@@ -132,6 +145,7 @@ export class DBManager {
             db.options.sshPassword,
             db.options.host,
             db.options.port,
+            db.options.sshPrivateKey || null,
           );
           tunnelAddressInfo = tunnel.tunnelAddressInfo;
           tunnelServer = tunnel.tunnelServer;
@@ -150,7 +164,7 @@ export class DBManager {
       }
 
       case DB_TYPE.POSTGRES: {
-        if (db.options.sshHost && db.options.sshPort && db.options.sshUser && db.options.sshPassword) {
+        if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
           const tunnel = await DBManager.createTunnel(
             db.options.sshHost,
             db.options.sshPort,
@@ -158,6 +172,7 @@ export class DBManager {
             db.options.sshPassword,
             db.options.host,
             db.options.port,
+            db.options.sshPrivateKey || null,
           );
           tunnelAddressInfo = tunnel.tunnelAddressInfo;
           tunnelServer = tunnel.tunnelServer;
@@ -176,7 +191,7 @@ export class DBManager {
       }
 
       case DB_TYPE.ORACLE: {
-        if (db.options.sshHost && db.options.sshPort && db.options.sshUser && db.options.sshPassword) {
+        if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
           const tunnel = await DBManager.createTunnel(
             db.options.sshHost,
             db.options.sshPort,
@@ -184,6 +199,7 @@ export class DBManager {
             db.options.sshPassword,
             db.options.host,
             db.options.port || 1521,
+            db.options.sshPrivateKey || null,
           );
           tunnelAddressInfo = tunnel.tunnelAddressInfo;
           tunnelServer = tunnel.tunnelServer;
@@ -207,7 +223,7 @@ export class DBManager {
       }
 
       case DB_TYPE.SQL_SERVER: {
-        if (db.options.sshHost && db.options.sshPort && db.options.sshUser && db.options.sshPassword) {
+        if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
           const tunnel = await DBManager.createTunnel(
             db.options.sshHost,
             db.options.sshPort,
@@ -215,6 +231,7 @@ export class DBManager {
             db.options.sshPassword,
             db.options.host,
             db.options.port || 1433,
+            db.options.sshPrivateKey || null,
           );
           tunnelAddressInfo = tunnel.tunnelAddressInfo;
           tunnelServer = tunnel.tunnelServer;

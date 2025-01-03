@@ -38,6 +38,8 @@ export interface DB {
     sshPort?: number;
     sshUser?: string;
     sshPassword?: string;
+    sshPrivateKey?: string;
+    sshPassphrase?: string;
   };
 }
 

@@ -35,6 +35,7 @@ const dbOptionsSchema = z.object({
   sshPort: z.optional(z.number()),
   sshUser: z.optional(z.string()),
   sshPassword: z.optional(z.string()),
+  sshPrivateKey: z.optional(z.string()),
 });
 const dbInsertSchema = z.object({
   name: z.string(),
