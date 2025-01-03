@@ -34,6 +34,10 @@ export interface DB {
       pfx?: string;
       passphrase?: string;
     };
+    sshHost?: string;
+    sshPort?: number;
+    sshUser?: string;
+    sshPassword?: string;
   };
 }
 
