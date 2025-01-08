@@ -13,6 +13,8 @@ import postgres from 'pg';
 import hana from '@sap/hana-client';
 import { createTunnel, ForwardOptions, ServerOptions, TunnelOptions, SshOptions } from 'tunnel-ssh';
 import { AddressInfo, Server } from 'net';
+import { Client } from 'ssh2';
+import { on } from 'events';
 
 // BigInt bug fix to string
 (BigInt.prototype as any).toJSON = function () {
@@ -24,21 +26,20 @@ import { AddressInfo, Server } from 'net';
 interface DBClient {
   client: presto.Client | mariadb.Pool | oracledb.Pool | sql.ConnectionPool | odbc.Pool | postgres.Pool | hana.ConnectionPool;
   type: string;
-  tunnel?: Server;
+  tunnel?: TunnelInfo;
+}
+
+interface TunnelInfo {
+  tunnelServer: Server;
+  tunnelAddressInfo: AddressInfo;
+  tunnelClient: Client;
 }
 
 export class DBManager {
   static dbMap: Map<string, DBClient> = new Map();
 
-  static async createTunnel(
-    sshHost: string,
-    sshPort: number,
-    sshUser: string,
-    sshPassword: string,
-    targetHost: string,
-    targetPort: number,
-    sshPrivateKey: string | null = null,
-  ): Promise<{ tunnelServer: Server; tunnelAddressInfo: AddressInfo }> {
+  static async createTunnel(db: DB): Promise<TunnelInfo> {
+    const { sshHost, sshPort, sshUser, sshPassword, host, port, sshPrivateKey } = db.options;
     const tunnelOptions: TunnelOptions = { autoClose: false, reconnectOnError: true };
     const sshOptions: SshOptions = {
       host: sshHost,
@@ -57,34 +58,34 @@ export class DBManager {
     }
 
     const forwardOptions: ForwardOptions = {
-      dstAddr: targetHost,
-      dstPort: targetPort,
+      dstAddr: host,
+      dstPort: port,
     };
     const [server, client] = await createTunnel(tunnelOptions, null, sshOptions, forwardOptions);
-    return { tunnelServer: server, tunnelAddressInfo: server.address() as AddressInfo };
+    server.on('error', (err: any) => {
+      logger.error(err.message);
+      DBManager.removeDB(db.name);
+      DBManager.addDB(db);
+    });
+
+    client.on('error', (err: any) => {
+      logger.error(err.message);
+      DBManager.removeDB(db.name);
+      DBManager.addDB(db);
+    });
+    return { tunnelServer: server, tunnelAddressInfo: server.address() as AddressInfo, tunnelClient: client };
   }
 
   static async addDB(db: DB): Promise<boolean> {
-    let tunnelAddressInfo: AddressInfo | undefined;
-    let tunnelServer: Server | undefined;
+    let tunnel: TunnelInfo | undefined;
     switch (db.type) {
       case DB_TYPE.TRINO: {
         if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
-          const tunnel = await DBManager.createTunnel(
-            db.options.sshHost,
-            db.options.sshPort,
-            db.options.sshUser,
-            db.options.sshPassword,
-            db.options.host,
-            db.options.port,
-            db.options.sshPrivateKey || null,
-          );
-          tunnelAddressInfo = tunnel.tunnelAddressInfo;
-          tunnelServer = tunnel.tunnelServer;
+          tunnel = await DBManager.createTunnel(db);
         }
         const prestoOptions: ClientOptions = {
-          host: tunnelAddressInfo ? tunnelAddressInfo.address : db.options.host,
-          port: tunnelAddressInfo ? tunnelAddressInfo.port : db.options.port,
+          host: tunnel ? tunnel.tunnelAddressInfo.address : db.options.host,
+          port: tunnel ? tunnel.tunnelAddressInfo.port : db.options.port,
           user: db.options.user,
           catalog: db.options.catalog,
           schema: db.options.schema,
@@ -103,6 +104,7 @@ export class DBManager {
         DBManager.dbMap.set(db.name, {
           client: new presto.Client(prestoOptions),
           type: db.type,
+          tunnel,
         });
 
         break;
@@ -110,21 +112,11 @@ export class DBManager {
 
       case DB_TYPE.MYSQL: {
         if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
-          const tunnel = await DBManager.createTunnel(
-            db.options.sshHost,
-            db.options.sshPort,
-            db.options.sshUser,
-            db.options.sshPassword,
-            db.options.host,
-            db.options.port,
-            db.options.sshPrivateKey || null,
-          );
-          tunnelAddressInfo = tunnel.tunnelAddressInfo;
-          tunnelServer = tunnel.tunnelServer;
+          tunnel = await DBManager.createTunnel(db);
         }
         const DBPool = mariadb.createPool({
-          host: tunnelAddressInfo ? tunnelAddressInfo.address : db.options.host,
-          port: tunnelAddressInfo ? tunnelAddressInfo.port : db.options.port,
+          host: tunnel ? tunnel.tunnelAddressInfo.address : db.options.host,
+          port: tunnel ? tunnel.tunnelAddressInfo.port : db.options.port,
           user: db.options.user,
           password: db.options.password,
           database: db.options.database,
@@ -132,83 +124,53 @@ export class DBManager {
           allowPublicKeyRetrieval: !!db.options.allowPublicKeyRetrieval,
           ssl: db.options.ssl || false,
         });
-        DBManager.dbMap.set(db.name, { client: DBPool, type: db.type });
+        DBManager.dbMap.set(db.name, { client: DBPool, type: db.type, tunnel });
         break;
       }
 
       case DB_TYPE.HANA: {
         if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
-          const tunnel = await DBManager.createTunnel(
-            db.options.sshHost,
-            db.options.sshPort,
-            db.options.sshUser,
-            db.options.sshPassword,
-            db.options.host,
-            db.options.port,
-            db.options.sshPrivateKey || null,
-          );
-          tunnelAddressInfo = tunnel.tunnelAddressInfo;
-          tunnelServer = tunnel.tunnelServer;
+          tunnel = await DBManager.createTunnel(db);
         }
         const DBPool = hana.createPool(
           {
-            host: tunnelAddressInfo ? tunnelAddressInfo.address : db.options.host,
-            port: tunnelAddressInfo ? tunnelAddressInfo.port : db.options.port,
+            host: tunnel ? tunnel.tunnelAddressInfo.address : db.options.host,
+            port: tunnel ? tunnel.tunnelAddressInfo.port : db.options.port,
             user: db.options.user,
             password: db.options.password,
           },
           { max: db.options.maxPool || 10 },
         );
-        DBManager.dbMap.set(db.name, { client: DBPool, type: db.type });
+        DBManager.dbMap.set(db.name, { client: DBPool, type: db.type, tunnel });
         break;
       }
 
       case DB_TYPE.POSTGRES: {
         if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
-          const tunnel = await DBManager.createTunnel(
-            db.options.sshHost,
-            db.options.sshPort,
-            db.options.sshUser,
-            db.options.sshPassword,
-            db.options.host,
-            db.options.port,
-            db.options.sshPrivateKey || null,
-          );
-          tunnelAddressInfo = tunnel.tunnelAddressInfo;
-          tunnelServer = tunnel.tunnelServer;
+          tunnel = await DBManager.createTunnel(db);
         }
         const postgresSQL = new postgres.Pool({
-          host: tunnelAddressInfo ? tunnelAddressInfo.address : db.options.host,
-          port: tunnelAddressInfo ? tunnelAddressInfo.port : db.options.port,
+          host: tunnel ? tunnel.tunnelAddressInfo.address : db.options.host,
+          port: tunnel ? tunnel.tunnelAddressInfo.port : db.options.port,
           user: db.options.user,
           password: db.options.password,
           database: db.options.database,
           ssl: db.options.ssl || false,
           max: db.options.maxPool || 10,
         });
-        DBManager.dbMap.set(db.name, { client: postgresSQL, type: db.type });
+        DBManager.dbMap.set(db.name, { client: postgresSQL, type: db.type, tunnel });
         break;
       }
 
       case DB_TYPE.ORACLE: {
         if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
-          const tunnel = await DBManager.createTunnel(
-            db.options.sshHost,
-            db.options.sshPort,
-            db.options.sshUser,
-            db.options.sshPassword,
-            db.options.host,
-            db.options.port || 1521,
-            db.options.sshPrivateKey || null,
-          );
-          tunnelAddressInfo = tunnel.tunnelAddressInfo;
-          tunnelServer = tunnel.tunnelServer;
+          tunnel = await DBManager.createTunnel(db);
         }
         await oracledb.createPool({
           user: db.options.user,
           password: db.options.password,
-          connectString: tunnelAddressInfo
-            ? `${tunnelAddressInfo.address}:${tunnelAddressInfo.port}`
+          connectString: tunnel
+            ? `${tunnel.tunnelAddressInfo.address}:${tunnel.tunnelAddressInfo.port}`
             : `${db.options.host}:${db.options.port || 1521}`,
           poolIncrement: db.options.poolInc || 1,
           poolMax: db.options.maxPool || 10,
@@ -218,29 +180,20 @@ export class DBManager {
         DBManager.dbMap.set(db.name, {
           client: oracledb.getPool(db.name),
           type: db.type,
+          tunnel,
         });
         break;
       }
 
       case DB_TYPE.SQL_SERVER: {
         if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
-          const tunnel = await DBManager.createTunnel(
-            db.options.sshHost,
-            db.options.sshPort,
-            db.options.sshUser,
-            db.options.sshPassword,
-            db.options.host,
-            db.options.port || 1433,
-            db.options.sshPrivateKey || null,
-          );
-          tunnelAddressInfo = tunnel.tunnelAddressInfo;
-          tunnelServer = tunnel.tunnelServer;
+          tunnel = await DBManager.createTunnel(db);
         }
         const pool = await new sql.ConnectionPool({
           user: db.options.user,
           password: db.options.password,
-          server: tunnelAddressInfo ? tunnelAddressInfo.address : db.options.host,
-          port: tunnelAddressInfo ? tunnelAddressInfo.port : db.options.port || 1433,
+          server: tunnel ? tunnel.tunnelAddressInfo.address : db.options.host,
+          port: tunnel ? tunnel.tunnelAddressInfo.port : db.options.port || 1433,
           database: db.options.database,
           pool: {
             max: db.options.maxPool || 10,
@@ -257,6 +210,7 @@ export class DBManager {
         DBManager.dbMap.set(db.name, {
           client: pool,
           type: db.type,
+          tunnel,
         });
         break;
       }
@@ -328,7 +282,9 @@ export class DBManager {
 
     if (dbClient.tunnel) {
       // close ssh tunnel
-      dbClient.tunnel.close();
+      dbClient.tunnel.tunnelServer.close();
+      dbClient.tunnel.tunnelClient.end();
+      dbClient.tunnel = undefined;
     }
 
     DBManager.dbMap.delete(name);
