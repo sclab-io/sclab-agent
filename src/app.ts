@@ -85,10 +85,12 @@ export class App {
         }
 
         if (data.status === 'error') {
-          const error = JSON.stringify(data.result);
-          const errData = JSON.parse(error);
-          errData.message = data.result.message;
-          data.result = errData;
+          if (typeof data.result === 'object') {
+            const error = JSON.stringify(data.result);
+            const errData = JSON.parse(error);
+            errData.message = data.result.message;
+            data.result = errData;
+          }
         }
         this.response(res, data);
       } catch (e) {

@@ -15,6 +15,7 @@ import { createTunnel, ForwardOptions, ServerOptions, TunnelOptions, SshOptions 
 import { AddressInfo, Server } from 'net';
 import { Client } from 'ssh2';
 import { on } from 'events';
+import { resolve } from 'path';
 
 // BigInt bug fix to string
 (BigInt.prototype as any).toJSON = function () {
@@ -36,6 +37,7 @@ interface TunnelInfo {
 }
 
 export class DBManager {
+  static addDBStack: Map<string, { resolve: Function; reject: Function }[]> = new Map();
   static dbMap: Map<string, DBClient> = new Map();
 
   static async createTunnel(db: DB): Promise<TunnelInfo> {
@@ -62,178 +64,211 @@ export class DBManager {
       dstPort: port,
     };
     const [server, client] = await createTunnel(tunnelOptions, null, sshOptions, forwardOptions);
-    server.on('error', (err: any) => {
-      logger.error(err.message);
-      DBManager.removeDB(db.name);
-      DBManager.addDB(db);
+    server.on('error', async (err: any) => {
+      logger.error('tunnel server', err.message);
     });
 
-    client.on('error', (err: any) => {
-      logger.error(err.message);
-      DBManager.removeDB(db.name);
-      DBManager.addDB(db);
+    client.on('error', async (err: any) => {
+      logger.error('tunnel client', err.message);
+      await DBManager.removeDB(db.name);
+      try {
+        await DBManager.addDB(db);
+      } catch (e) {
+        logger.error('add db error', e);
+      }
     });
     return { tunnelServer: server, tunnelAddressInfo: server.address() as AddressInfo, tunnelClient: client };
   }
 
   static async addDB(db: DB): Promise<boolean> {
+    if (DBManager.addDBStack.has(db.name)) {
+      logger.debug('addDBStack', db.name);
+      // wait until previous addDB is done
+      return new Promise((resolve, reject) => {
+        DBManager.addDBStack.get(db.name)?.push({ resolve, reject });
+      });
+    }
+
+    DBManager.addDBStack.set(db.name, []);
     let tunnel: TunnelInfo | undefined;
-    switch (db.type) {
-      case DB_TYPE.TRINO: {
-        if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
-          tunnel = await DBManager.createTunnel(db);
-        }
-        const prestoOptions: ClientOptions = {
-          host: tunnel ? tunnel.tunnelAddressInfo.address : db.options.host,
-          port: tunnel ? tunnel.tunnelAddressInfo.port : db.options.port,
-          user: db.options.user,
-          catalog: db.options.catalog,
-          schema: db.options.schema,
-          engine: db.options.engine,
-          source: 'SCLAB Agent',
-        };
 
-        if (db.options.authType === 'basic' && db.options.user) {
-          prestoOptions.basic_auth = {
+    try {
+      switch (db.type) {
+        case DB_TYPE.TRINO: {
+          if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
+            tunnel = await DBManager.createTunnel(db);
+          }
+          const prestoOptions: ClientOptions = {
+            host: tunnel ? tunnel.tunnelAddressInfo.address : db.options.host,
+            port: tunnel ? tunnel.tunnelAddressInfo.port : db.options.port,
             user: db.options.user,
-            password: db.options.password || '',
+            catalog: db.options.catalog,
+            schema: db.options.schema,
+            engine: db.options.engine,
+            source: 'SCLAB Agent',
           };
-        } else if (db.options.authType === 'custom' && db.options.customAuth) {
-          prestoOptions.custom_auth = db.options.customAuth;
-        }
-        DBManager.dbMap.set(db.name, {
-          client: new presto.Client(prestoOptions),
-          type: db.type,
-          tunnel,
-        });
 
-        break;
-      }
+          if (db.options.authType === 'basic' && db.options.user) {
+            prestoOptions.basic_auth = {
+              user: db.options.user,
+              password: db.options.password || '',
+            };
+          } else if (db.options.authType === 'custom' && db.options.customAuth) {
+            prestoOptions.custom_auth = db.options.customAuth;
+          }
+          DBManager.dbMap.set(db.name, {
+            client: new presto.Client(prestoOptions),
+            type: db.type,
+            tunnel,
+          });
 
-      case DB_TYPE.MYSQL: {
-        if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
-          tunnel = await DBManager.createTunnel(db);
+          break;
         }
-        const DBPool = mariadb.createPool({
-          host: tunnel ? tunnel.tunnelAddressInfo.address : db.options.host,
-          port: tunnel ? tunnel.tunnelAddressInfo.port : db.options.port,
-          user: db.options.user,
-          password: db.options.password,
-          database: db.options.database,
-          connectionLimit: db.options.maxPool || 10,
-          allowPublicKeyRetrieval: !!db.options.allowPublicKeyRetrieval,
-          ssl: db.options.ssl || false,
-        });
-        DBManager.dbMap.set(db.name, { client: DBPool, type: db.type, tunnel });
-        break;
-      }
 
-      case DB_TYPE.HANA: {
-        if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
-          tunnel = await DBManager.createTunnel(db);
-        }
-        const DBPool = hana.createPool(
-          {
+        case DB_TYPE.MYSQL: {
+          if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
+            tunnel = await DBManager.createTunnel(db);
+          }
+          const DBPool = mariadb.createPool({
             host: tunnel ? tunnel.tunnelAddressInfo.address : db.options.host,
             port: tunnel ? tunnel.tunnelAddressInfo.port : db.options.port,
             user: db.options.user,
             password: db.options.password,
-          },
-          { max: db.options.maxPool || 10 },
-        );
-        DBManager.dbMap.set(db.name, { client: DBPool, type: db.type, tunnel });
-        break;
-      }
-
-      case DB_TYPE.POSTGRES: {
-        if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
-          tunnel = await DBManager.createTunnel(db);
+            database: db.options.database,
+            connectionLimit: db.options.maxPool || 10,
+            allowPublicKeyRetrieval: !!db.options.allowPublicKeyRetrieval,
+            ssl: db.options.ssl || false,
+          });
+          DBManager.dbMap.set(db.name, { client: DBPool, type: db.type, tunnel });
+          break;
         }
-        const postgresSQL = new postgres.Pool({
-          host: tunnel ? tunnel.tunnelAddressInfo.address : db.options.host,
-          port: tunnel ? tunnel.tunnelAddressInfo.port : db.options.port,
-          user: db.options.user,
-          password: db.options.password,
-          database: db.options.database,
-          ssl: db.options.ssl || false,
-          max: db.options.maxPool || 10,
-        });
-        DBManager.dbMap.set(db.name, { client: postgresSQL, type: db.type, tunnel });
-        break;
-      }
 
-      case DB_TYPE.ORACLE: {
-        if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
-          tunnel = await DBManager.createTunnel(db);
+        case DB_TYPE.HANA: {
+          if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
+            tunnel = await DBManager.createTunnel(db);
+          }
+          const DBPool = hana.createPool(
+            {
+              host: tunnel ? tunnel.tunnelAddressInfo.address : db.options.host,
+              port: tunnel ? tunnel.tunnelAddressInfo.port : db.options.port,
+              user: db.options.user,
+              password: db.options.password,
+            },
+            { max: db.options.maxPool || 10 },
+          );
+          DBManager.dbMap.set(db.name, { client: DBPool, type: db.type, tunnel });
+          break;
         }
-        await oracledb.createPool({
-          user: db.options.user,
-          password: db.options.password,
-          connectString: tunnel
-            ? `${tunnel.tunnelAddressInfo.address}:${tunnel.tunnelAddressInfo.port}`
-            : `${db.options.host}:${db.options.port || 1521}`,
-          poolIncrement: db.options.poolInc || 1,
-          poolMax: db.options.maxPool || 10,
-          poolMin: db.options.minPoll || 4,
-          poolAlias: db.name,
-        });
-        DBManager.dbMap.set(db.name, {
-          client: oracledb.getPool(db.name),
-          type: db.type,
-          tunnel,
-        });
-        break;
-      }
 
-      case DB_TYPE.SQL_SERVER: {
-        if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
-          tunnel = await DBManager.createTunnel(db);
-        }
-        const pool = await new sql.ConnectionPool({
-          user: db.options.user,
-          password: db.options.password,
-          server: tunnel ? tunnel.tunnelAddressInfo.address : db.options.host,
-          port: tunnel ? tunnel.tunnelAddressInfo.port : db.options.port || 1433,
-          database: db.options.database,
-          pool: {
+        case DB_TYPE.POSTGRES: {
+          if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
+            tunnel = await DBManager.createTunnel(db);
+          }
+          const postgresSQL = new postgres.Pool({
+            host: tunnel ? tunnel.tunnelAddressInfo.address : db.options.host,
+            port: tunnel ? tunnel.tunnelAddressInfo.port : db.options.port,
+            user: db.options.user,
+            password: db.options.password,
+            database: db.options.database,
+            ssl: db.options.ssl || false,
             max: db.options.maxPool || 10,
-            min: db.options.minPoll || 0,
-            idleTimeoutMillis: (MSSQL_IDLE_TIMEOUT_MS && parseInt(MSSQL_IDLE_TIMEOUT_MS, 10)) || 30000,
-          },
-          options: {
-            trustedConnection: true,
-            encrypt: true,
-            enableArithAbort: true,
-            trustServerCertificate: true,
-          },
-        }).connect();
-        DBManager.dbMap.set(db.name, {
-          client: pool,
-          type: db.type,
-          tunnel,
-        });
-        break;
-      }
+          });
+          DBManager.dbMap.set(db.name, { client: postgresSQL, type: db.type, tunnel });
+          break;
+        }
 
-      case DB_TYPE.ODBC: {
-        const pool = await odbc.pool({
-          connectionString: db.options.host!,
-          connectionTimeout: 10,
-          loginTimeout: 10,
-          maxSize: db.options.maxPool,
-        });
-        DBManager.dbMap.set(db.name, {
-          client: pool,
-          type: db.type,
-        });
-        break;
-      }
+        case DB_TYPE.ORACLE: {
+          if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
+            tunnel = await DBManager.createTunnel(db);
+          }
+          await oracledb.createPool({
+            user: db.options.user,
+            password: db.options.password,
+            connectString: tunnel
+              ? `${tunnel.tunnelAddressInfo.address}:${tunnel.tunnelAddressInfo.port}`
+              : `${db.options.host}:${db.options.port || 1521}`,
+            poolIncrement: db.options.poolInc || 1,
+            poolMax: db.options.maxPool || 10,
+            poolMin: db.options.minPoll || 4,
+            poolAlias: db.name,
+          });
+          DBManager.dbMap.set(db.name, {
+            client: oracledb.getPool(db.name),
+            type: db.type,
+            tunnel,
+          });
+          break;
+        }
 
-      default: {
-        logger.info(`Not implemented database ${db.type}`);
-        break;
+        case DB_TYPE.SQL_SERVER: {
+          if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
+            tunnel = await DBManager.createTunnel(db);
+          }
+          const pool = await new sql.ConnectionPool({
+            user: db.options.user,
+            password: db.options.password,
+            server: tunnel ? tunnel.tunnelAddressInfo.address : db.options.host,
+            port: tunnel ? tunnel.tunnelAddressInfo.port : db.options.port || 1433,
+            database: db.options.database,
+            pool: {
+              max: db.options.maxPool || 10,
+              min: db.options.minPoll || 0,
+              idleTimeoutMillis: (MSSQL_IDLE_TIMEOUT_MS && parseInt(MSSQL_IDLE_TIMEOUT_MS, 10)) || 30000,
+            },
+            options: {
+              trustedConnection: true,
+              encrypt: true,
+              enableArithAbort: true,
+              trustServerCertificate: true,
+            },
+          }).connect();
+          DBManager.dbMap.set(db.name, {
+            client: pool,
+            type: db.type,
+            tunnel,
+          });
+          break;
+        }
+
+        case DB_TYPE.ODBC: {
+          const pool = await odbc.pool({
+            connectionString: db.options.host!,
+            connectionTimeout: 10,
+            loginTimeout: 10,
+            maxSize: db.options.maxPool,
+          });
+          DBManager.dbMap.set(db.name, {
+            client: pool,
+            type: db.type,
+          });
+          break;
+        }
+
+        default: {
+          logger.info(`Not implemented database ${db.type}`);
+          break;
+        }
       }
+    } catch (e) {
+      logger.error('add db error', e);
+      if (tunnel) {
+        tunnel.tunnelServer.close();
+        tunnel.tunnelClient.end();
+      }
+      DBManager.addDBStack.get(db.name).forEach(fn => {
+        fn.reject(false);
+      });
+      DBManager.addDBStack.delete(db.name);
+      return false;
     }
+
+    if (DBManager.addDBStack.get(db.name).length > 0) {
+      DBManager.addDBStack.get(db.name).forEach(fn => {
+        fn.resolve(true);
+      });
+    }
+
+    DBManager.addDBStack.delete(db.name);
 
     return true;
   }
@@ -590,6 +625,22 @@ export class DBManager {
           }
         }
       } catch (e) {
+        if (e.message.includes('client does not exists in DBManager.dbMap')) {
+          // try to add db
+          try {
+            const db = await App.agentConfig.getDatabase(name);
+            if (await DBManager.addDB(db)) {
+              resolve(await DBManager.runSQL(name, sql, limit));
+            } else {
+              reject('Connection lost, check your database connection');
+            }
+            return;
+          } catch (e) {
+            logger.error('run sql reconnect fail', e);
+            reject('Connection lost, check your database connection');
+            return;
+          }
+        }
         reject(e);
       }
     });
