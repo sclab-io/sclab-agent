@@ -44,7 +44,7 @@ export class DBManager {
 
   static async createTunnel(db: DB): Promise<TunnelInfo> {
     const { sshHost, sshPort, sshUser, sshPassword, host, port, sshPrivateKey } = db.options;
-    const tunnelOptions: TunnelOptions = { autoClose: false, reconnectOnError: true };
+    const tunnelOptions: TunnelOptions = { autoClose: false, reconnectOnError: false };
     const sshOptions: SshOptions = {
       host: sshHost,
       port: sshPort || 22,
@@ -67,17 +67,13 @@ export class DBManager {
     };
     const [server, client] = await createTunnel(tunnelOptions, null, sshOptions, forwardOptions);
     server.on('error', async (err: any) => {
-      logger.error('tunnel server', err.message);
+      logger.error('tunnel server : ' + JSON.stringify(err));
+      DBManager.removeDB(db.name);
     });
 
     client.on('error', async (err: any) => {
-      logger.error('tunnel client', err.message);
-      await DBManager.removeDB(db.name);
-      try {
-        await DBManager.addDB(db);
-      } catch (e) {
-        logger.error('add db error', e);
-      }
+      logger.error('tunnel client : ' + JSON.stringify(err));
+      DBManager.removeDB(db.name);
     });
     return { tunnelServer: server, tunnelAddressInfo: server.address() as AddressInfo, tunnelClient: client };
   }
@@ -255,7 +251,7 @@ export class DBManager {
         }
       }
     } catch (e) {
-      logger.error('add db error', e);
+      logger.error('add db error :' + JSON.stringify(e));
       if (tunnel) {
         tunnel.tunnelServer.close();
         tunnel.tunnelClient.end();
@@ -275,6 +271,8 @@ export class DBManager {
 
     DBManager.addDBStack.delete(db.name);
 
+    logger.info(`DB Added : ${db.name}`);
+
     return true;
   }
 
@@ -282,6 +280,8 @@ export class DBManager {
     if (!DBManager.dbMap.has(name)) {
       return;
     }
+
+    logger.info(`DB Removed : ${name}`);
 
     const dbClient = DBManager.getClient(name);
     switch (dbClient.type) {
@@ -641,7 +641,7 @@ export class DBManager {
             }
             return;
           } catch (e) {
-            logger.error('run sql reconnect fail', e);
+            logger.error('run sql reconnect fail : ' + JSON.stringify(e));
             reject('Connection lost, check your database connection');
             return;
           }
