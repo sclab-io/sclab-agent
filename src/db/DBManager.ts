@@ -490,7 +490,7 @@ export class DBManager {
     }
   }
 
-  static runSQL(name: string, sql: string, limit: number = 0): Promise<any> {
+  static runSQL(name: string, sql: string, limit: number = 0, retry: number = 1): Promise<any> {
     return new Promise(async (resolve, reject) => {
       try {
         logger.debug(`DB NAME : ${name}`);
@@ -554,6 +554,15 @@ export class DBManager {
 
           case DB_TYPE.MYSQL: {
             const client = dbClient.client as mariadb.Pool;
+            if (client.idleConnections() === 0 && client.activeConnections() === 0) {
+              // reconnect
+              if (retry > 0) {
+                await DBManager.removeDB(name);
+                await DBManager.addDB(await App.agentConfig.getDatabase(name));
+                resolve(await DBManager.runSQL(name, sql, limit, retry - 1));
+                return;
+              }
+            }
             const conn = await client.getConnection();
             try {
               const rows = await conn.query(sql);
