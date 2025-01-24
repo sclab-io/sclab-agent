@@ -19,7 +19,7 @@ jobs:
       - name: build
         run: |
           npm run build
-          docker build . -t sclabio/sclab-agent:latest
+          docker buildx build --platform=linux/amd64,linux/arm64,linux/s390x -t sclabio/sclab-agent:latest . 
       - name: publish
         run: |
           docker login -u sclabio -p ${{ secrets.DOCKER_HUB_TOKEN }}
