@@ -1,5 +1,4 @@
 name: Publish image to Docker Hub
-
 on:
   push:
     branches:
@@ -9,47 +8,19 @@ jobs:
   publish_image:
     runs-on: ubuntu-latest
     steps:
-      # Checkout the repository
-      - name: Checkout repository
+      - name: checkout
         uses: actions/checkout@v4
-      
-      # Set up Node.js
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-
-      # Install dependencies
+          cache: npm  
       - name: Install dependencies
         run: npm install
-
-      # Build the application
-      - name: Build the application
-        run: npm run build
-
-      # Set up QEMU for multi-platform builds
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-        with:
-          platforms: all
-
-      # Set up Docker Buildx
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      # Log in to Docker Hub
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: sclabio
-          password: ${{ secrets.DOCKER_HUB_TOKEN }}
-
-      # Build and push the Docker image
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: sclabio/sclab-agent:latest
-          platforms: linux/amd64,linux/arm64
+      - name: build
+        run: |
+          npm run build
+          docker build . -t sclabio/sclab-agent:latest
+      - name: publish
+        run: |
+          docker login -u sclabio -p ${{ secrets.DOCKER_HUB_TOKEN }}
+          docker push sclabio/sclab-agent:latest
