@@ -554,7 +554,7 @@ export class DBManager {
 
           case DB_TYPE.MYSQL: {
             const client = dbClient.client as mariadb.Pool;
-            if (client.idleConnections() === 0 && client.activeConnections() === 0) {
+            if (client.closed || (client.idleConnections() === 0 && client.activeConnections() === 0)) {
               // reconnect
               if (retry > 0) {
                 await DBManager.removeDB(name);
