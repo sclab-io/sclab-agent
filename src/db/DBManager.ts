@@ -602,6 +602,7 @@ export class DBManager {
               resolve(rows);
             } catch (e) {
               reject(e);
+              return;
             } finally {
               conn.clean();
             }
@@ -615,6 +616,7 @@ export class DBManager {
               resolve(result.rows);
             } catch (e) {
               reject(e);
+              return;
             }
             break;
           }
@@ -637,6 +639,7 @@ export class DBManager {
               resolve(rows);
             } catch (e) {
               reject(e);
+              return;
             } finally {
               await conn.close();
             }
