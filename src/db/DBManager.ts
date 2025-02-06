@@ -579,6 +579,7 @@ export class DBManager {
                 return;
               }
               reject(e);
+              return;
             }
 
             try {
@@ -586,6 +587,7 @@ export class DBManager {
               resolve(rows);
             } catch (e) {
               reject(e);
+              return;
             } finally {
               await conn.release();
             }
