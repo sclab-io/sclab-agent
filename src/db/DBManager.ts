@@ -554,6 +554,8 @@ export class DBManager {
 
           case DB_TYPE.MYSQL: {
             const client = dbClient.client as mariadb.Pool;
+
+            // 커넥션 풀 관련 이슈로 인해 커넥션을 가져오지 못하는 경우 재시도
             if (client.closed || (client.idleConnections() === 0 && client.activeConnections() === 0)) {
               // reconnect
               if (retry > 0) {
@@ -563,7 +565,22 @@ export class DBManager {
                 return;
               }
             }
-            const conn = await client.getConnection();
+
+            let conn: mariadb.PoolConnection;
+            try {
+              conn = await client.getConnection();
+            } catch (e) {
+              // 기타 이유로 커넥션을 가져오지 못하는 경우
+              // reconnect
+              if (retry > 0) {
+                await DBManager.removeDB(name);
+                await DBManager.addDB(await App.agentConfig.getDatabase(name));
+                resolve(await DBManager.runSQL(name, sql, limit, retry - 1));
+                return;
+              }
+              reject(e);
+            }
+
             try {
               const rows = await conn.query(sql);
               resolve(rows);
