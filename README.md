@@ -1,8 +1,11 @@
 # sclab-agent
 
 # installation
+
 ## .env
+
 create .env file and paste this env vars
+
 ~~~bash
 #LOG_DIR="./logs"
 PORT=7890
@@ -29,9 +32,11 @@ USE_MYBATIS=1
 #ORACLE_CLIENT_DIR=
 
 #MSSQL_IDLE_TIMEOUT_MS=30000
+TUNNEL_KEEP_ALIVE_INTERVAL_MS=3600000
 ~~~
 
 ## create JWT key
+
 ~~~bash
 $ mkdir jwt
 $ ssh-keygen -t rsa -b 4096 -m PEM -f ./jwt/jwtRS256.key
@@ -40,17 +45,20 @@ $ openssl rsa -in ./jwt/jwtRS256.key -pubout -outform PEM -out ./jwt/jwtRS256.ke
 ~~~
 
 ## create SSL key
+
 ~~~bash
-$ mkdir cert
-$ openssl genrsa -out ./cert/privkey.pem 2048
-$ openssl req -new -sha256 -key ./cert/privkey.pem -out ./cert/csr.pem
-$ openssl x509 -req -in ./cert/csr.pem -signkey ./cert/privkey.pem -out ./cert/cert.pem
+mkdir cert
+openssl genrsa -out ./cert/privkey.pem 2048
+openssl req -new -sha256 -key ./cert/privkey.pem -out ./cert/csr.pem
+openssl x509 -req -in ./cert/csr.pem -signkey ./cert/privkey.pem -out ./cert/cert.pem
 ~~~
 
 ## install nodejs
+
 [nodejs](https://nodejs.org/en)
 
 ## install unixODBC
+
 * unixODBC binaries and development libraries for module compilation
   * on Ubuntu/Debian `sudo apt-get install unixodbc unixodbc-dev`
   * on RedHat/CentOS `sudo yum install unixODBC unixODBC-devel`
@@ -67,20 +75,24 @@ $ openssl x509 -req -in ./cert/csr.pem -signkey ./cert/privkey.pem -out ./cert/c
 ## Oracle Client mode
 
 ### Thin mode (nodejs default)
+
 - Support Oracle Database version 12.1 or later
 
 ### Thick mode (docker-compose default)
+
 - Support Oracle Database version 21, 19, 18, 12, and 11.2
-- If you are using Docker, it runs by default in thick mode, so you don't need to install client.
+* If you are using Docker, it runs by default in thick mode, so you don't need to install client.
 
 #### Thick mode install
+
 - download client
-- https://www.oracle.com/database/technologies/instant-client/downloads.html
-- unzip client
-- uncomment ORACLE_CLIENT_DIR with your client path
-- more detail in https://node-oracledb.readthedocs.io/en/latest/user_guide/installation.html#install-oracle-client-to-use-thick-mode
+* <https://www.oracle.com/database/technologies/instant-client/downloads.html>
+* unzip client
+* uncomment ORACLE_CLIENT_DIR with your client path
+* more detail in <https://node-oracledb.readthedocs.io/en/latest/user_guide/installation.html#install-oracle-client-to-use-thick-mode>
 
 # run
+
 ~~~bash
 # install packages
 $ npm install
@@ -93,23 +105,28 @@ $ npm run dev
 ~~~
 
 # log
+
 ~~~bash
-$ tail -f ./logs/debug/${DATE}.log
-$ tail -f ./logs/error/${DATE}.log
+tail -f ./logs/debug/${DATE}.log
+tail -f ./logs/error/${DATE}.log
 ~~~
 
 # stop
+
 ~~~bash
-$ npx pm2 stop 0
+npx pm2 stop 0
 ~~~
 
 # connection test
+
 ~~~bash
 # You have to use -k option for avoid self signed certificate problem.
 # You can replace your certificate files from CA.
 $ curl https://localhost:7890/ -k -H 'authorization: your key from console log'
 ~~~
+
 Reponse
+
 ~~~json
 {"status":"ok","result":"Authentication complete."}
 ~~~

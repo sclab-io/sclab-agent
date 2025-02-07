@@ -6,7 +6,7 @@ import { logger } from '../util/logger';
 import mariadb from 'mariadb';
 import oracledb from 'oracledb';
 import sql from 'mssql';
-import { MSSQL_IDLE_TIMEOUT_MS } from '../config';
+import { MSSQL_IDLE_TIMEOUT_MS, TUNNEL_KEEP_ALIVE_INTERVAL_MS } from '../config';
 import odbc from 'odbc';
 import { App } from '../app';
 import postgres from 'pg';
@@ -28,6 +28,7 @@ interface DBClient {
   client: presto.Client | mariadb.Pool | oracledb.Pool | sql.ConnectionPool | odbc.Pool | postgres.Pool | hana.ConnectionPool;
   type: string;
   tunnel?: TunnelInfo;
+  keepAliveTimeoutId?: NodeJS.Timeout;
 }
 
 interface TunnelInfo {
@@ -76,6 +77,31 @@ export class DBManager {
       DBManager.removeDB(db.name);
     });
     return { tunnelServer: server, tunnelAddressInfo: server.address() as AddressInfo, tunnelClient: client };
+  }
+
+  static getKeepAliveTimeoutId(tunnel: TunnelInfo | undefined, dbName: string): NodeJS.Timeout | undefined {
+    if (!tunnel) {
+      return undefined;
+    }
+
+    const keepAliveInterval = TUNNEL_KEEP_ALIVE_INTERVAL_MS ? parseInt(TUNNEL_KEEP_ALIVE_INTERVAL_MS, 10) : 3600000;
+    return setTimeout(async () => {
+      try {
+        logger.info('keepAliveTimeoutRunning: ' + dbName);
+        await DBManager.testConnection(dbName);
+        const dbClient = DBManager.getClient(dbName);
+        dbClient.keepAliveTimeoutId = DBManager.getKeepAliveTimeoutId(dbClient.tunnel, dbName);
+      } catch (e) {
+        logger.error('KeepAliveTimeoutId error : ' + JSON.stringify(e));
+      }
+    }, keepAliveInterval);
+  }
+
+  static updateKeepAliveTimeoutId(dbClient: DBClient, dbName: string) {
+    if (dbClient.keepAliveTimeoutId) {
+      clearTimeout(dbClient.keepAliveTimeoutId);
+      dbClient.keepAliveTimeoutId = DBManager.getKeepAliveTimeoutId(dbClient.tunnel, dbName);
+    }
   }
 
   static async addDB(db: DB): Promise<boolean> {
@@ -140,7 +166,13 @@ export class DBManager {
             allowPublicKeyRetrieval: !!db.options.allowPublicKeyRetrieval,
             ssl: db.options.ssl || false,
           });
-          DBManager.dbMap.set(db.name, { client: DBPool, type: db.type, tunnel });
+
+          DBManager.dbMap.set(db.name, {
+            client: DBPool,
+            type: db.type,
+            tunnel,
+            keepAliveTimeoutId: DBManager.getKeepAliveTimeoutId(tunnel, db.name),
+          });
           break;
         }
 
@@ -157,7 +189,12 @@ export class DBManager {
             },
             { max: db.options.maxPool || 10 },
           );
-          DBManager.dbMap.set(db.name, { client: DBPool, type: db.type, tunnel });
+          DBManager.dbMap.set(db.name, {
+            client: DBPool,
+            type: db.type,
+            tunnel,
+            keepAliveTimeoutId: DBManager.getKeepAliveTimeoutId(tunnel, db.name),
+          });
           break;
         }
 
@@ -174,7 +211,12 @@ export class DBManager {
             ssl: db.options.ssl || false,
             max: db.options.maxPool || 10,
           });
-          DBManager.dbMap.set(db.name, { client: postgresSQL, type: db.type, tunnel });
+          DBManager.dbMap.set(db.name, {
+            client: postgresSQL,
+            type: db.type,
+            tunnel,
+            keepAliveTimeoutId: DBManager.getKeepAliveTimeoutId(tunnel, db.name),
+          });
           break;
         }
 
@@ -197,6 +239,7 @@ export class DBManager {
             client: oracledb.getPool(db.name),
             type: db.type,
             tunnel,
+            keepAliveTimeoutId: DBManager.getKeepAliveTimeoutId(tunnel, db.name),
           });
           break;
         }
@@ -227,6 +270,7 @@ export class DBManager {
             client: pool,
             type: db.type,
             tunnel,
+            keepAliveTimeoutId: DBManager.getKeepAliveTimeoutId(tunnel, db.name),
           });
           break;
         }
@@ -325,6 +369,11 @@ export class DBManager {
       dbClient.tunnel.tunnelServer.close();
       dbClient.tunnel.tunnelClient.end();
       dbClient.tunnel = undefined;
+    }
+
+    if (dbClient.keepAliveTimeoutId) {
+      clearTimeout(dbClient.keepAliveTimeoutId);
+      dbClient.keepAliveTimeoutId = undefined;
     }
 
     DBManager.dbMap.delete(name);
@@ -590,6 +639,7 @@ export class DBManager {
               return;
             } finally {
               await conn.release();
+              DBManager.updateKeepAliveTimeoutId(dbClient, name);
             }
             break;
           }
@@ -605,6 +655,7 @@ export class DBManager {
               return;
             } finally {
               conn.clean();
+              DBManager.updateKeepAliveTimeoutId(dbClient, name);
             }
             break;
           }
@@ -617,6 +668,8 @@ export class DBManager {
             } catch (e) {
               reject(e);
               return;
+            } finally {
+              DBManager.updateKeepAliveTimeoutId(dbClient, name);
             }
             break;
           }
@@ -642,6 +695,7 @@ export class DBManager {
               return;
             } finally {
               await conn.close();
+              DBManager.updateKeepAliveTimeoutId(dbClient, name);
             }
             break;
           }
@@ -650,6 +704,7 @@ export class DBManager {
             const client = dbClient.client as sql.ConnectionPool;
             const result = await client.query(sql);
             resolve(result.recordset);
+            DBManager.updateKeepAliveTimeoutId(dbClient, name);
             break;
           }
 
