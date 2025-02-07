@@ -157,6 +157,7 @@ export class DBManager {
             client: new presto.Client(prestoOptions),
             type: db.type,
             tunnel,
+            keepAliveTimeoutId: DBManager.getKeepAliveTimeoutId(tunnel, db.name),
           });
 
           break;
