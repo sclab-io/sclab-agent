@@ -89,10 +89,20 @@ export class DBManager {
       try {
         logger.info('keepAliveTimeoutRunning: ' + dbName);
         await DBManager.testConnection(dbName);
-        const dbClient = DBManager.getClient(dbName);
-        dbClient.keepAliveTimeoutId = DBManager.getKeepAliveTimeoutId(dbClient.tunnel, dbName);
       } catch (e) {
         logger.error('KeepAliveTimeoutId error : ' + JSON.stringify(e));
+        try {
+          DBManager.removeDB(dbName);
+          DBManager.addDB(await App.agentConfig.getDatabase(dbName));
+        } catch (e) {
+          logger.error('keepAliveReConnectError : ' + JSON.stringify(e));
+        }
+      } finally {
+        const dbClient = DBManager.getClient(dbName);
+        if (dbClient.keepAliveTimeoutId) {
+          clearTimeout(dbClient.keepAliveTimeoutId);
+        }
+        dbClient.keepAliveTimeoutId = DBManager.getKeepAliveTimeoutId(dbClient.tunnel, dbName);
       }
     }, keepAliveInterval);
   }
