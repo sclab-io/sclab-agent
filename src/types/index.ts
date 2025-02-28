@@ -29,11 +29,14 @@ export interface DB {
     minPoll?: number;
     poolInc?: number;
     allowPublicKeyRetrieval?: boolean;
-    ssl?: {
-      ca?: string;
-      pfx?: string;
-      passphrase?: string;
-    };
+    ssl?:
+      | {
+          ca?: string;
+          pfx?: string;
+          passphrase?: string;
+          rejectUnauthorized?: boolean;
+        }
+      | boolean;
     sshHost?: string;
     sshPort?: number;
     sshUser?: string;

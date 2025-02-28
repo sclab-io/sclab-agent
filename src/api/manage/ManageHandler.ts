@@ -25,11 +25,14 @@ const dbOptionsSchema = z.object({
   poolInc: z.optional(z.number()),
   allowPublicKeyRetrieval: z.optional(z.boolean()),
   ssl: z.optional(
-    z.object({
-      ca: z.optional(z.string()),
-      pfx: z.optional(z.string()),
-      passphrase: z.optional(z.string()),
-    }),
+    z
+      .object({
+        ca: z.optional(z.string()),
+        pfx: z.optional(z.string()),
+        passphrase: z.optional(z.string()),
+        rejectUnauthorized: z.optional(z.boolean()),
+      })
+      .or(z.boolean()),
   ),
   sshHost: z.optional(z.string()),
   sshPort: z.optional(z.number()),

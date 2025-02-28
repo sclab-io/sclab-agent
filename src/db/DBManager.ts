@@ -175,7 +175,12 @@ export class DBManager {
             database: db.options.database,
             connectionLimit: db.options.maxPool || 10,
             allowPublicKeyRetrieval: !!db.options.allowPublicKeyRetrieval,
-            ssl: db.options.ssl || false,
+            ssl:
+              db.options.ssl === true
+                ? {
+                    rejectUnauthorized: false,
+                  }
+                : false,
           });
 
           DBManager.dbMap.set(db.name, {
@@ -219,7 +224,12 @@ export class DBManager {
             user: db.options.user,
             password: db.options.password,
             database: db.options.database,
-            ssl: db.options.ssl || false,
+            ssl:
+              db.options.ssl === true
+                ? {
+                    rejectUnauthorized: false,
+                  }
+                : false,
             max: db.options.maxPool || 10,
           });
           DBManager.dbMap.set(db.name, {
