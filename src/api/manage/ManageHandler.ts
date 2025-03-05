@@ -290,7 +290,8 @@ export class ManageHandler extends CommonHandler {
       sql = replaceString(data.sql, data.params);
     }
 
-    const result = await DBManager.runSQL(data.name, sql, 10);
+    const limit = /SELECT/i.test(sql) ? 10 : 0;
+    const result = await DBManager.runSQL(data.name, sql, limit);
     return {
       status: 'ok',
       result,

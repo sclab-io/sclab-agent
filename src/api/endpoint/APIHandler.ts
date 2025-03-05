@@ -3,7 +3,6 @@ import { App } from '../../app';
 import { USE_MYBATIS } from '../../config';
 import { DBManager } from '../../db/DBManager';
 import type { SCLABResponseData } from '../../types';
-import { logger } from '../../util/logger';
 import { hasSql, replaceString } from '../../util/util';
 import { CommonHandler } from '../CommonHandler';
 import MybatisMapper from 'mybatis-mapper';
@@ -49,7 +48,8 @@ export class APIHandler extends CommonHandler {
         sql = replaceString(api.SQL, valueObj);
       }
 
-      const result = await DBManager.runSQL(api.name, sql, 10);
+      const limit = /SELECT/i.test(sql) ? 10 : 0;
+      const result = await DBManager.runSQL(api.name, sql, limit);
 
       if (req.headers && req.headers['total-count']) {
         const countResult = await DBManager.runSQL(api.name, `SELECT COUNT(*) AS count FROM (${DBManager.removeLimitClause(sql)})`, 1);
