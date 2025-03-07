@@ -560,11 +560,21 @@ export class DBManager {
     }
   }
 
+  static applyENV(sql: string): string {
+    // __ENVVARIABLE NAME__ 를 환경변수로 치환
+    const envRegex = /__([A-Z0-9_]+)__/g;
+    return sql.replace(envRegex, (match, p1) => {
+      return process.env[p1] || '';
+    });
+  }
+
   static runSQL(name: string, sql: string, limit: number = 0, retry: number = 1): Promise<any> {
     return new Promise(async (resolve, reject) => {
       try {
         logger.debug(`DB NAME : ${name}`);
         const dbClient = DBManager.getClient(name);
+
+        sql = DBManager.applyENV(sql);
 
         if (limit > 0) {
           sql = DBManager.ensureLimitClause(sql, limit, dbClient.type);
