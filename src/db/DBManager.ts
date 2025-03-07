@@ -6,7 +6,7 @@ import { logger } from '../util/logger';
 import mariadb from 'mariadb';
 import oracledb from 'oracledb';
 import sql from 'mssql';
-import { MSSQL_IDLE_TIMEOUT_MS, TUNNEL_KEEP_ALIVE_INTERVAL_MS } from '../config';
+import { MSSQL_IDLE_TIMEOUT_MS, TUNNEL_KEEP_ALIVE_INTERVAL_MS, USE_SQL_ENV } from '../config';
 import odbc from 'odbc';
 import { App } from '../app';
 import postgres from 'pg';
@@ -574,7 +574,9 @@ export class DBManager {
         logger.debug(`DB NAME : ${name}`);
         const dbClient = DBManager.getClient(name);
 
-        sql = DBManager.applyENV(sql);
+        if (USE_SQL_ENV) {
+          sql = DBManager.applyENV(sql);
+        }
 
         if (limit > 0) {
           sql = DBManager.ensureLimitClause(sql, limit, dbClient.type);

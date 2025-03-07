@@ -14,4 +14,5 @@ export const {
   LD_LIBRARY_PATH,
   MSSQL_IDLE_TIMEOUT_MS,
   TUNNEL_KEEP_ALIVE_INTERVAL_MS,
+  USE_SQL_ENV,
 } = process.env;
