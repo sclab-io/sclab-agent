@@ -54,6 +54,7 @@
     "packages/*"
   ],
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.758.0",
     "@sap/hana-client": "^2.22.27",
     "@types/pg": "^8.11.6",
     "compression": "^1.7.4",

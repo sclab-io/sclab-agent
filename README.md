@@ -33,6 +33,11 @@ USE_MYBATIS=1
 
 #MSSQL_IDLE_TIMEOUT_MS=30000
 TUNNEL_KEEP_ALIVE_INTERVAL_MS=3600000
+#USE_SQL_ENV=1
+#USE_AWS_SECRET_MANAGER=1
+#AWS_REGION=ap-northeast-2
+#AWS_SECRET_KEY_ID=
+#AWS_SECRET_ACCESS_KEY=
 ~~~
 
 ## create JWT key
@@ -76,16 +81,18 @@ openssl x509 -req -in ./cert/csr.pem -signkey ./cert/privkey.pem -out ./cert/cer
 
 ### Thin mode (nodejs default)
 
-- Support Oracle Database version 12.1 or later
+* Support Oracle Database version 12.1 or later
 
 ### Thick mode (docker-compose default)
 
-- Support Oracle Database version 21, 19, 18, 12, and 11.2
+* Support Oracle Database version 21, 19, 18, 12, and 11.2
+
 * If you are using Docker, it runs by default in thick mode, so you don't need to install client.
 
 #### Thick mode install
 
-- download client
+* download client
+
 * <https://www.oracle.com/database/technologies/instant-client/downloads.html>
 * unzip client
 * uncomment ORACLE_CLIENT_DIR with your client path

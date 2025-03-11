@@ -6,7 +6,7 @@ import { logger } from '../util/logger';
 import mariadb from 'mariadb';
 import oracledb from 'oracledb';
 import sql from 'mssql';
-import { MSSQL_IDLE_TIMEOUT_MS, TUNNEL_KEEP_ALIVE_INTERVAL_MS, USE_SQL_ENV } from '../config';
+import { MSSQL_IDLE_TIMEOUT_MS, TUNNEL_KEEP_ALIVE_INTERVAL_MS, USE_SQL_ENV, USE_AWS_SECRET_MANAGER } from '../config';
 import odbc from 'odbc';
 import { App } from '../app';
 import postgres from 'pg';
@@ -16,6 +16,7 @@ import { AddressInfo, Server } from 'net';
 import { Client } from 'ssh2';
 import { on } from 'events';
 import { resolve } from 'path';
+import { SecretManager } from '@/config/SecretManager';
 
 // BigInt bug fix to string
 (BigInt.prototype as any).toJSON = function () {
@@ -562,10 +563,29 @@ export class DBManager {
 
   static applyENV(sql: string): string {
     // __ENVVARIABLE NAME__ 를 환경변수로 치환
-    const envRegex = /__([A-Z0-9_]+)__/g;
+    const envRegex = /__([\s\S]+)__/g;
     return sql.replace(envRegex, (match, p1) => {
       return process.env[p1] || '';
     });
+  }
+
+  static async applyAWSSecret(sql: string): Promise<string> {
+    const asRegex = /__AS_([\s\S]+)__/g;
+    let match: any;
+    let keyCache: any = {};
+    while ((match = asRegex.exec(sql)) !== null) {
+      const key = match[1];
+      if (keyCache[key]) {
+        sql = sql.replace(match[0], keyCache[key]);
+        continue;
+      }
+
+      const idKeyArr = key.split('::');
+      const value = await SecretManager.getKey(idKeyArr[0], idKeyArr[1]);
+      sql = sql.replace(match[0], value);
+      keyCache[key] = value;
+    }
+    return sql;
   }
 
   static runSQL(name: string, sql: string, limit: number = 0, retry: number = 1): Promise<any> {
@@ -578,9 +598,14 @@ export class DBManager {
           sql = DBManager.applyENV(sql);
         }
 
+        if (USE_AWS_SECRET_MANAGER) {
+          sql = await DBManager.applyAWSSecret(sql);
+        }
+
         if (limit > 0) {
           sql = DBManager.ensureLimitClause(sql, limit, dbClient.type);
         }
+
         logger.debug(`RUN SQL : ${sql}`);
         switch (dbClient.type) {
           case DB_TYPE.TRINO: {
