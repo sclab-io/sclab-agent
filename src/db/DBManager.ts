@@ -563,26 +563,28 @@ export class DBManager {
 
   static applyENV(sql: string): string {
     // __ENVVARIABLE NAME__ 를 환경변수로 치환
-    const envRegex = /__([\s\S]+)__/g;
+    const envRegex = /__AS_([^,\s]+)__/g;
     return sql.replace(envRegex, (match, p1) => {
       return process.env[p1] || '';
     });
   }
 
   static async applyAWSSecret(sql: string): Promise<string> {
-    const asRegex = /__AS_([\s\S]+)__/g;
+    const asRegex = /__AS_([^,\s]+)__/g;
     let match: any;
     let keyCache: any = {};
     while ((match = asRegex.exec(sql)) !== null) {
+      const token = match[0];
       const key = match[1];
+      const pattern = new RegExp(token, 'g');
       if (keyCache[key]) {
-        sql = sql.replace(match[0], keyCache[key]);
+        sql = sql.replace(pattern, keyCache[key]);
         continue;
       }
 
       const idKeyArr = key.split('::');
       const value = await SecretManager.getKey(idKeyArr[0], idKeyArr[1]);
-      sql = sql.replace(match[0], value);
+      sql = sql.replace(pattern, value);
       keyCache[key] = value;
     }
     return sql;
