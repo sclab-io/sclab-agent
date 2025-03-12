@@ -562,32 +562,49 @@ export class DBManager {
   }
 
   static applyENV(sql: string): string {
-    // __ENVVARIABLE NAME__ 를 환경변수로 치환
-    const envRegex = /__AS_([^,\s]+)__/g;
-    return sql.replace(envRegex, (match, p1) => {
-      return process.env[p1] || '';
-    });
+    // __EN_VARIABLE NAME__ 를 환경변수로 치환
+    // SQL에서 단일 인용부호로 구분된 부분으로 나눕니다.
+    // 인용부호 안쪽은 실제 토큰 값으로 간주합니다.
+    const parts = sql.split("'");
+    for (let i = 1; i < parts.length; i += 2) {
+      const segment = parts[i];
+      if (segment.startsWith('__EN_') && segment.endsWith('__')) {
+        const keyContent = segment.slice(5, segment.length - 2);
+        let value: string = process.env[keyContent];
+        parts[i] = value;
+      }
+    }
+
+    return parts.join("'");
   }
 
   static async applyAWSSecret(sql: string): Promise<string> {
-    const asRegex = /__AS_([^,\s]+)__/g;
-    let match: any;
-    let keyCache: any = {};
-    while ((match = asRegex.exec(sql)) !== null) {
-      const token = match[0];
-      const key = match[1];
-      const pattern = new RegExp(token, 'g');
-      if (keyCache[key]) {
-        sql = sql.replace(pattern, keyCache[key]);
-        continue;
-      }
+    const keyCache: { [key: string]: string } = {};
 
-      const idKeyArr = key.split('::');
-      const value = await SecretManager.getKey(idKeyArr[0], idKeyArr[1]);
-      sql = sql.replace(pattern, value);
-      keyCache[key] = value;
+    // SQL에서 단일 인용부호로 구분된 부분으로 나눕니다.
+    // 인용부호 안쪽은 실제 토큰 값으로 간주합니다.
+    const parts = sql.split("'");
+
+    for (let i = 1; i < parts.length; i += 2) {
+      const segment = parts[i];
+      if (segment.startsWith('__AS_') && segment.endsWith('__')) {
+        const keyContent = segment.slice(5, segment.length - 2);
+
+        let value: string;
+        if (keyCache[keyContent]) {
+          value = keyCache[keyContent];
+        } else {
+          // "::"를 기준으로 분리하여 SecretManager에서 값을 가져옵니다.
+          const [firstKey, secondKey] = keyContent.split('::');
+          value = await SecretManager.getKey(firstKey, secondKey);
+          keyCache[keyContent] = value;
+        }
+
+        parts[i] = value;
+      }
     }
-    return sql;
+
+    return parts.join("'");
   }
 
   static runSQL(name: string, sql: string, limit: number = 0, retry: number = 1): Promise<any> {
