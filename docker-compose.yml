@@ -22,3 +22,5 @@ services:
       - JWT_PUBLIC_KEY_PATH=/data/jwt/jwtRS256.key.pub
       - TLS_CERT=/data/cert/cert.pem
       - TLS_KEY=/data/cert/privkey.pem
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

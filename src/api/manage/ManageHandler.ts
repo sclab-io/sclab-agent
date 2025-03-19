@@ -65,7 +65,7 @@ const getTablesSchema = z.object({
 const getTableSchema = z.object({
   name: z.string(),
   catalog: z.optional(z.string()),
-  schema: z.string(),
+  schema: z.optional(z.string()),
   table: z.string(),
 });
 const runSQLSchema = z.object({

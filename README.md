@@ -1,8 +1,8 @@
 # sclab-agent
 
-# installation
+## installation
 
-## .env
+### .env
 
 create .env file and paste this env vars
 
@@ -40,7 +40,7 @@ TUNNEL_KEEP_ALIVE_INTERVAL_MS=3600000
 #AWS_SECRET_ACCESS_KEY=
 ~~~
 
-## create JWT key
+### create JWT key
 
 ~~~bash
 $ mkdir jwt
@@ -49,7 +49,7 @@ $ ssh-keygen -t rsa -b 4096 -m PEM -f ./jwt/jwtRS256.key
 $ openssl rsa -in ./jwt/jwtRS256.key -pubout -outform PEM -out ./jwt/jwtRS256.key.pub
 ~~~
 
-## create SSL key
+### create SSL key
 
 ~~~bash
 mkdir cert
@@ -58,11 +58,11 @@ openssl req -new -sha256 -key ./cert/privkey.pem -out ./cert/csr.pem
 openssl x509 -req -in ./cert/csr.pem -signkey ./cert/privkey.pem -out ./cert/cert.pem
 ~~~
 
-## install nodejs
+### install nodejs
 
 [nodejs](https://nodejs.org/en)
 
-## install unixODBC
+### install unixODBC
 
 * unixODBC binaries and development libraries for module compilation
   * on Ubuntu/Debian `sudo apt-get install unixodbc unixodbc-dev`
@@ -77,13 +77,13 @@ openssl x509 -req -in ./cert/csr.pem -signkey ./cert/privkey.pem -out ./cert/cer
 * print config info `odbcinst -j`
 * test dsn `isql -v mydsn myusername mypassword`
 
-## Oracle Client mode
+### Oracle Client mode
 
-### Thin mode (nodejs default)
+#### Thin mode (nodejs default)
 
 * Support Oracle Database version 12.1 or later
 
-### Thick mode (docker-compose default)
+#### Thick mode (docker-compose default)
 
 * Support Oracle Database version 21, 19, 18, 12, and 11.2
 
@@ -98,7 +98,7 @@ openssl x509 -req -in ./cert/csr.pem -signkey ./cert/privkey.pem -out ./cert/cer
 * uncomment ORACLE_CLIENT_DIR with your client path
 * more detail in <https://node-oracledb.readthedocs.io/en/latest/user_guide/installation.html#install-oracle-client-to-use-thick-mode>
 
-# run
+## run
 
 ~~~bash
 # install packages
@@ -111,20 +111,20 @@ $ npm run deploy:prod
 $ npm run dev
 ~~~
 
-# log
+## log
 
 ~~~bash
 tail -f ./logs/debug/${DATE}.log
 tail -f ./logs/error/${DATE}.log
 ~~~
 
-# stop
+## stop
 
 ~~~bash
 npx pm2 stop 0
 ~~~
 
-# connection test
+## connection test
 
 ~~~bash
 # You have to use -k option for avoid self signed certificate problem.
@@ -137,3 +137,7 @@ Reponse
 ~~~json
 {"status":"ok","result":"Authentication complete."}
 ~~~
+
+## Run docker
+
+<https://hub.docker.com/r/sclabio/sclab-agent>
