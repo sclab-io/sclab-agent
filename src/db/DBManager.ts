@@ -1113,7 +1113,7 @@ export class DBManager {
           case DB_TYPE.ODBC: {
             const db = await App.agentConfig.getDatabase(data.name);
             const connection = await odbc.connect(db.options.host);
-            result = (await connection.tables(data.catalog, data.schema, null, null)).map((row: { TABLE_NAME: string }) => {
+            result = (await connection.tables(data.catalog || null, data.schema || null, null, null)).map((row: { TABLE_NAME: string }) => {
               return {
                 name: row.TABLE_NAME,
               };
