@@ -47,8 +47,11 @@ export const hasSql = (value: string): boolean => {
     /\w*((%27)|('))((%6F)|o|(%4F))((%72)|r|(%52))/i,
     /((%27)|('))union/i,
     /\b(or|and)\b\s+[^'"\s]+\s*=\s*[^'"\s]+\b/i,
-    /\b(select|update|delete|insert|drop|create|alter|truncate|exec|execute)\b/i,
   ];
+
+  if (process.env.REMOVE_KEYWORD_INJECTION_CHECK !== '1') {
+    patterns.push(/\b(select|update|delete|insert|drop|create|alter|truncate|exec|execute)\b/i);
+  }
 
   return patterns.some(pattern => pattern.test(value));
 };
