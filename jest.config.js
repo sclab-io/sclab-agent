@@ -9,4 +9,6 @@ module.exports = {
     '^.+\\.tsx?$': 'ts-jest',
   },
   moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, { prefix: '<rootDir>/src' }),
+  // Cache Jest files in local directory to avoid permission issues
+  cacheDirectory: '<rootDir>/node_modules/.cache/jest',
 };
