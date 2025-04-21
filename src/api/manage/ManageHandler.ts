@@ -295,6 +295,7 @@ export class ManageHandler extends CommonHandler {
     return {
       status: 'ok',
       result,
+      sql,
     };
   }
 

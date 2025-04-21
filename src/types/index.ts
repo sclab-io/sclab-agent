@@ -1,4 +1,5 @@
 import type { MqttClient } from 'mqtt';
+import sql from 'mssql';
 
 export interface SCLABRequestHeaders {
   authorization: string;
@@ -8,6 +9,7 @@ export interface SCLABResponseData {
   status: 'ok' | 'error';
   result: any;
   totalCount?: number;
+  sql?: string;
 }
 
 export interface DB {
