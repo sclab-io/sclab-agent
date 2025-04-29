@@ -52,52 +52,57 @@ export class IOTManager {
 
   static async add(iot: IOT): Promise<void> {
     return new Promise((resolve, reject) => {
-      const key = IOTManager.getClientKey(iot);
-      let client: MqttClient;
-      if (IOTManager.clientMap.has(key)) {
-        const iotClient = IOTManager.clientMap.get(key)!;
-        iotClient.count++;
-        client = iotClient.client;
-        IOTManager.run(iot);
-      } else {
-        client = mqtt.connect(iot.broker.host, {
-          clientId: iot.broker.clientId,
-          rejectUnauthorized: false,
-          username: iot.broker.id,
-          password: iot.broker.password,
-          keepalive: 60,
-          reconnectPeriod: 10 * 1000,
-          connectTimeout: 30 * 1000,
-          clean: true,
-        });
-        IOTManager.clientMap.set(key, {
-          count: 1,
-          client,
-        });
-        client.on('connect', () => {
-          logger.info(`MQTT Server connected : ${iot.topic}`);
+      try {
+        const key = IOTManager.getClientKey(iot);
+        let client: MqttClient;
+        if (IOTManager.clientMap.has(key)) {
+          const iotClient = IOTManager.clientMap.get(key)!;
+          iotClient.count++;
+          client = iotClient.client;
           IOTManager.run(iot);
           resolve();
-        });
+        } else {
+          client = mqtt.connect(iot.broker.host, {
+            clientId: iot.broker.clientId,
+            rejectUnauthorized: false,
+            username: iot.broker.id,
+            password: iot.broker.password,
+            keepalive: 60,
+            reconnectPeriod: 10 * 1000,
+            connectTimeout: 30 * 1000,
+            clean: true,
+          });
+          IOTManager.clientMap.set(key, {
+            count: 1,
+            client,
+          });
+          client.on('connect', () => {
+            logger.info(`MQTT Server connected : ${iot.topic}`);
+            IOTManager.run(iot);
+            resolve();
+          });
 
-        client.on('close', () => {
-          logger.info(`MQTT Service close : ${iot.topic}`);
-          reject('connection closed');
-        });
+          client.on('close', () => {
+            logger.info(`MQTT Service close : ${iot.topic}`);
+            reject('connection closed');
+          });
 
-        client.on('disconnect', () => {
-          logger.info(`MQTT Service disconnect : ${iot.topic}`);
-        });
+          client.on('disconnect', () => {
+            logger.info(`MQTT Service disconnect : ${iot.topic}`);
+          });
 
-        client.on('offline', () => {
-          logger.info(`MQTT Service offline : ${iot.topic}`);
-        });
+          client.on('offline', () => {
+            logger.info(`MQTT Service offline : ${iot.topic}`);
+          });
 
-        client.on('error', err => {
-          logger.error(iot.topic, err);
-          IOTManager.remove(iot.topic);
-          reject(err);
-        });
+          client.on('error', err => {
+            logger.error(iot.topic, err);
+            IOTManager.remove(iot.topic);
+            reject(err);
+          });
+        }
+      } catch (e) {
+        reject(e);
       }
     });
   }
