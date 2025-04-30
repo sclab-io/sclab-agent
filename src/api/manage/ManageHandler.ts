@@ -227,7 +227,7 @@ export class ManageHandler extends CommonHandler {
 
   static async getHistoryList(data: { name: string; path?: string; topic?: string }): Promise<SCLABResponseData> {
     getHistorySchema.parse(data);
-    let result = await App.agentConfig.getHistoryList(data.name, data.path, data.topic);
+    let result = await App.agentConfig.getHistoryList(data.name, data.path || null, data.topic || null);
     return {
       status: 'ok',
       result,

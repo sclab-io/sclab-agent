@@ -390,17 +390,19 @@ export class AgentConfig {
 
   getHistoryList(name: string, path: string | null, topic: string | null): Promise<HISTORY[]> {
     return new Promise((resolve, reject) => {
-      this.db.all(`SELECT * FROM HISTORY WHERE name = ?, path = ?, topic = ?`, [name, path, topic], function (err, res) {
+      const sql = `
+        SELECT * FROM HISTORY
+        WHERE name = ?
+          AND (path = ? OR (? IS NULL AND path IS NULL))
+          AND (topic = ? OR (? IS NULL AND topic IS NULL))
+      `;
+      const params = [name, path, path, topic, topic];
+      this.db.all(sql, params, (err, rows: any[]) => {
         if (err) {
           reject(err);
           return;
         }
-
-        resolve(
-          res.map((row: any) => {
-            return AgentConfig.parseHistory(row);
-          }),
-        );
+        resolve(rows.map((row: any) => AgentConfig.parseHistory(row)));
       });
     });
   }
