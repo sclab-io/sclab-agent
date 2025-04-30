@@ -9,6 +9,7 @@ import MybatisMapper from 'mybatis-mapper';
 import { USE_MYBATIS } from '../../config';
 import { Request } from 'express';
 import { replaceString } from '../../util/util';
+import { AgentConfig } from '@/db/AgentConfig';
 
 const dbOptionsSchema = z.object({
   host: z.string(),
@@ -67,6 +68,11 @@ const getTableSchema = z.object({
   catalog: z.optional(z.string()),
   schema: z.optional(z.string()),
   table: z.string(),
+});
+const getHistorySchema = z.object({
+  name: z.string(),
+  path: z.optional(z.string()),
+  topic: z.optional(z.string()),
 });
 const runSQLSchema = z.object({
   name: z.string(),
@@ -145,6 +151,10 @@ export class ManageHandler extends CommonHandler {
           const data: any = req.body;
           return await ManageHandler.runSQL(data);
         }
+        case '/manage/history/list': {
+          const data: any = req.body;
+          return await ManageHandler.getHistoryList(data);
+        }
         case '/manage/db/list': {
           return await ManageHandler.dbList();
         }
@@ -213,6 +223,15 @@ export class ManageHandler extends CommonHandler {
     }
 
     return super.handle(req);
+  }
+
+  static async getHistoryList(data: { name: string; path?: string; topic?: string }): Promise<SCLABResponseData> {
+    getHistorySchema.parse(data);
+    let result = await App.agentConfig.getHistoryList(data.name, data.path, data.topic);
+    return {
+      status: 'ok',
+      result,
+    };
   }
 
   static async getTable(data: { name: string; catalog?: string; schema: string; table: string }): Promise<SCLABResponseData> {

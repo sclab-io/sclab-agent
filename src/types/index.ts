@@ -72,6 +72,16 @@ export interface IOT {
   oldTopic?: string;
 }
 
+export interface HISTORY {
+  id?: number;
+  name: string;
+  path?: string;
+  topic?: string;
+  SQL: string;
+  desc?: string;
+  createdAt: number;
+}
+
 export interface IOTClient {
   count: number;
   client: MqttClient;

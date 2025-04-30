@@ -1,6 +1,7 @@
 import { Database } from 'sqlite3';
-import type { API, DB, IOT } from '../types';
+import type { API, DB, HISTORY, IOT } from '../types';
 import { logger } from '@/util/logger';
+import { resolve } from 'path';
 
 export class AgentConfig {
   static parse(row: any): DB {
@@ -37,6 +38,21 @@ export class AgentConfig {
       SQL: row.SQL,
       interval: row.interval,
       broker: JSON.parse(row.broker),
+    };
+  }
+
+  static parseHistory(row: any): HISTORY {
+    if (!row) {
+      throw new Error('Cannot found row data');
+    }
+    return {
+      id: row.id,
+      name: row.name,
+      path: row.path,
+      topic: row.topic,
+      SQL: row.SQL,
+      desc: row.desc,
+      createdAt: row.createdAt,
     };
   }
 
@@ -207,7 +223,30 @@ export class AgentConfig {
                       return;
                     }
 
-                    resolve();
+                    this.db.run(
+                      `
+                    CREATE TABLE IF NOT EXISTS HISTORY (
+                        id	        INTEGER	  PRIMARY KEY,
+                        name        TEXT      NOT NULL,
+                        path        TEXT      NULL,
+                        topic       TEXT      NULL,
+                        SQL	        TEXT	    NOT NULL,
+                        desc        TEXT      NULL,
+                        createdAt   INTEGER   NOT NULL,
+                        FOREIGN KEY (name) REFERENCES DB(name)
+                        FOREIGN KEY (path) REFERENCES API(path),
+                        FOREIGN KEY (topic) REFERENCES IOT(topic)
+                    )
+                    `,
+                      err => {
+                        if (err) {
+                          reject(err);
+                          return;
+                        }
+
+                        resolve();
+                      },
+                    );
                   },
                 );
               },
@@ -223,13 +262,21 @@ export class AgentConfig {
       this.db.run(
         `INSERT INTO IOT (topic, name, SQL, interval, broker, desc) VALUES (?, ?, ?, ?, ?, ?)`,
         [iot.topic, iot.name, iot.SQL, iot.interval, JSON.stringify(iot.broker), iot.desc],
-        function (err) {
+        err => {
           if (err) {
             reject(err);
             return;
           }
 
-          resolve();
+          this.insertHistory({
+            name: iot.name,
+            topic: iot.topic,
+            SQL: iot.SQL,
+            desc: iot.desc,
+            createdAt: Date.now(),
+          })
+            .then(resolve)
+            .catch(reject);
         },
       );
     });
@@ -251,13 +298,21 @@ export class AgentConfig {
           topic = ?
         `,
         [iot.topic, iot.name, iot.SQL, iot.interval, JSON.stringify(iot.broker), iot.desc, iot.oldTopic!],
-        function (err) {
+        err => {
           if (err) {
             reject(err);
             return;
           }
 
-          resolve();
+          this.insertHistory({
+            name: iot.name,
+            topic: iot.topic,
+            SQL: iot.SQL,
+            desc: iot.desc,
+            createdAt: Date.now(),
+          })
+            .then(resolve)
+            .catch(reject);
         },
       );
     });
@@ -265,13 +320,19 @@ export class AgentConfig {
 
   deleteIOT(topic: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.run('DELETE FROM IOT WHERE topic = ?', [topic], function (err) {
+      this.db.run('DELETE FROM HISTORY WHERE topic = ?', [topic], err => {
         if (err) {
           reject(err);
           return;
         }
+        this.db.run('DELETE FROM IOT WHERE topic = ?', [topic], function (err) {
+          if (err) {
+            reject(err);
+            return;
+          }
 
-        resolve();
+          resolve();
+        });
       });
     });
   }
@@ -327,18 +388,43 @@ export class AgentConfig {
     });
   }
 
+  getHistoryList(name: string, path: string | null, topic: string | null): Promise<HISTORY[]> {
+    return new Promise((resolve, reject) => {
+      this.db.all(`SELECT * FROM HISTORY WHERE name = ?, path = ?, topic = ?`, [name, path, topic], function (err, res) {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        resolve(
+          res.map((row: any) => {
+            return AgentConfig.parseHistory(row);
+          }),
+        );
+      });
+    });
+  }
+
   insertAPI(api: API): Promise<void> {
     return new Promise((resolve, reject) => {
       this.db.run(
         `INSERT INTO API (path, name, SQL, injectionCheck, desc) VALUES (?, ?, ?, ?, ?)`,
         [api.path, api.name, api.SQL, api.injectionCheck, api.desc],
-        function (err) {
+        err => {
           if (err) {
             reject(err);
             return;
           }
 
-          resolve();
+          this.insertHistory({
+            name: api.name,
+            path: api.path,
+            SQL: api.SQL,
+            desc: api.desc,
+            createdAt: Date.now(),
+          })
+            .then(resolve)
+            .catch(reject);
         },
       );
     });
@@ -358,13 +444,21 @@ export class AgentConfig {
       WHERE path = ?
       `,
         [api.path, api.name, api.SQL, api.injectionCheck, api.desc, api.oldPath!],
-        function (err) {
+        err => {
           if (err) {
             reject(err);
             return;
           }
 
-          resolve();
+          this.insertHistory({
+            name: api.name,
+            path: api.path,
+            SQL: api.SQL,
+            desc: api.desc,
+            createdAt: Date.now(),
+          })
+            .then(resolve)
+            .catch(reject);
         },
       );
     });
@@ -372,13 +466,20 @@ export class AgentConfig {
 
   deleteAPI(path: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.run('DELETE FROM API WHERE path = ?', [path], function (err) {
+      this.db.run('DELETE FROM HISTORY WHERE path = ?', [path], err => {
         if (err) {
           reject(err);
           return;
         }
 
-        resolve();
+        this.db.run('DELETE FROM API WHERE path = ?', [path], function (err) {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          resolve();
+        });
       });
     });
   }
@@ -414,6 +515,24 @@ export class AgentConfig {
           }),
         );
       });
+    });
+  }
+
+  insertHistory(history: HISTORY): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const { name, path, topic, SQL, desc, createdAt } = history;
+
+      this.db.run(
+        `INSERT INTO HISTORY (name, path, topic, SQL, desc, createdAt) VALUES (?, ?, ?, ?, ?, ?)`,
+        [name, path ?? null, topic ?? null, SQL, desc ?? null, createdAt],
+        function (err) {
+          if (err) {
+            reject(err);
+            return;
+          }
+          resolve();
+        },
+      );
     });
   }
 }

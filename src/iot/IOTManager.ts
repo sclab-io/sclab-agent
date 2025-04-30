@@ -84,7 +84,6 @@ export class IOTManager {
 
           client.on('close', () => {
             logger.info(`MQTT Service close : ${iot.topic}`);
-            reject('connection closed');
           });
 
           client.on('disconnect', () => {
@@ -117,19 +116,17 @@ export class IOTManager {
       const iot = await App.agentConfig.getIOT(topic);
       const key = IOTManager.getClientKey(iot);
       if (!IOTManager.clientMap.has(key)) {
+        resolve();
         return;
       }
 
       const iotClient = IOTManager.clientMap.get(key)!;
       if (iotClient.count <= 1) {
-        if (iotClient.client.connected) {
-          iotClient.client.end(() => {
-            IOTManager.clientMap.delete(key);
-            resolve();
-          });
-        } else {
+        iotClient.client.end(() => {
+          IOTManager.clientMap.delete(key);
           resolve();
-        }
+        });
+        IOTManager.clientMap.delete(key);
       } else {
         iotClient.count--;
         resolve();
