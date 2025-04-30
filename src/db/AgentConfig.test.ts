@@ -122,6 +122,75 @@ describe('AgentConfig History Logging', () => {
     expect(historyNew).toHaveLength(1);
     expect(historyNew[0].SQL).toBe(updated.SQL);
   });
+
+  test('deleteHistory removes specific API history entry', async () => {
+    const db: DB = { name: 'dbDel', type: 'test', options: {} };
+    await agentConfig.insertDatabase(db);
+    const api: API = {
+      path: '/del-api',
+      name: 'dbDel',
+      SQL: 'SELECT x',
+      injectionCheck: false,
+      desc: 'to delete',
+    };
+    await agentConfig.insertAPI(api);
+    let historyList: HISTORY[] = await agentConfig.getHistoryList('dbDel', api.path, null);
+    expect(historyList).toHaveLength(1);
+    const id = historyList[0].id!;
+    await agentConfig.deleteHistory(id);
+    historyList = await agentConfig.getHistoryList('dbDel', api.path, null);
+    expect(historyList).toHaveLength(0);
+  });
+
+  test('deleteHistory removes specific IOT history entry', async () => {
+    const db: DB = { name: 'dbDelIot', type: 'test', options: {} };
+    await agentConfig.insertDatabase(db);
+    const iot: IOT = {
+      topic: 'del-topic',
+      name: 'dbDelIot',
+      SQL: 'UPDATE y',
+      interval: 100,
+      broker: { host: 'h', clientId: 'c', id: 'i', password: 'p' },
+      desc: 'delete iot',
+    };
+    await agentConfig.insertIOT(iot);
+    let historyList: HISTORY[] = await agentConfig.getHistoryList('dbDelIot', null, iot.topic);
+    expect(historyList).toHaveLength(1);
+    const id = historyList[0].id!;
+    await agentConfig.deleteHistory(id);
+    historyList = await agentConfig.getHistoryList('dbDelIot', null, iot.topic);
+    expect(historyList).toHaveLength(0);
+  });
+
+  test('delete all history with path or topic', async () => {
+    const db: DB = { name: 'dbX', type: 'test', options: {} };
+    await agentConfig.insertDatabase(db);
+    // insert one API history
+    const api: API = { path: '/path1', name: 'dbX', SQL: 'API_Q', injectionCheck: false, desc: 'api desc' };
+    await agentConfig.insertAPI(api);
+    // insert one IOT history
+    const iot: IOT = {
+      topic: 'topic1', name: 'dbX', SQL: 'IOT_Q', interval: 10,
+      broker: { host: 'h', clientId: 'c', id: 'i', password: 'p' }, desc: 'iot desc'
+    };
+    await agentConfig.insertIOT(iot);
+    // verify both histories exist
+    let apiHist: HISTORY[] = await agentConfig.getHistoryList('dbX', api.path, null);
+    expect(apiHist).toHaveLength(1);
+    let iotHist: HISTORY[] = await agentConfig.getHistoryList('dbX', null, iot.topic);
+    expect(iotHist).toHaveLength(1);
+    // delete API histories by path
+    await agentConfig.deleteHistoryAll('dbX', api.path, null);
+    apiHist = await agentConfig.getHistoryList('dbX', api.path, null);
+    expect(apiHist).toHaveLength(0);
+    // IOT history remains
+    iotHist = await agentConfig.getHistoryList('dbX', null, iot.topic);
+    expect(iotHist).toHaveLength(1);
+    // delete IOT histories by topic
+    await agentConfig.deleteHistoryAll('dbX', null, iot.topic);
+    iotHist = await agentConfig.getHistoryList('dbX', null, iot.topic);
+    expect(iotHist).toHaveLength(0);
+  });
 });
 
 describe('AgentConfig CRUD operations', () => {

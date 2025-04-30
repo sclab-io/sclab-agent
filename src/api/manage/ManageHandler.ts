@@ -155,6 +155,14 @@ export class ManageHandler extends CommonHandler {
           const data: any = req.body;
           return await ManageHandler.getHistoryList(data);
         }
+        case '/manage/history/delete': {
+          const data: any = req.body;
+          return await ManageHandler.historyDelete(data);
+        }
+        case '/manage/history/delete/all': {
+          const data: any = req.body;
+          return await ManageHandler.historyDeleteAll(data);
+        }
         case '/manage/db/list': {
           return await ManageHandler.dbList();
         }
@@ -231,6 +239,28 @@ export class ManageHandler extends CommonHandler {
     return {
       status: 'ok',
       result,
+    };
+  }
+
+  static async historyDelete(idStr: string): Promise<SCLABResponseData> {
+    singleStringSchema.parse(idStr);
+    const id = parseInt(idStr, 10);
+    if (isNaN(id)) {
+      return { status: 'error', result: 'Invalid history id' };
+    }
+    await App.agentConfig.deleteHistory(id);
+    return {
+      status: 'ok',
+      result: 'history delete complete',
+    };
+  }
+
+  static async historyDeleteAll(data: { name: string; path?: string; topic?: string }): Promise<SCLABResponseData> {
+    getHistorySchema.parse(data);
+    await App.agentConfig.deleteHistoryAll(data.name, data.path || null, data.topic || null);
+    return {
+      status: 'ok',
+      result: 'history delete complete',
     };
   }
 

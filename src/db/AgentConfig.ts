@@ -537,4 +537,38 @@ export class AgentConfig {
       );
     });
   }
+
+  deleteHistory(id: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.db.run('DELETE FROM HISTORY WHERE id = ?', [id], function (err) {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * Delete all history entries matching name, path, and topic.
+   */
+  deleteHistoryAll(name: string, path: string | null, topic: string | null): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        DELETE FROM HISTORY
+        WHERE name = ?
+          AND (path = ? OR (? IS NULL AND path IS NULL))
+          AND (topic = ? OR (? IS NULL AND topic IS NULL))
+      `;
+      const params = [name, path, path, topic, topic];
+      this.db.run(sql, params, function (err) {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve();
+      });
+    });
+  }
 }
