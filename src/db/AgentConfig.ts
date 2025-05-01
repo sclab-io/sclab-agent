@@ -1,7 +1,5 @@
 import { Database } from 'sqlite3';
 import type { API, DB, HISTORY, IOT } from '../types';
-import { logger } from '@/util/logger';
-import { resolve } from 'path';
 
 export class AgentConfig {
   static parse(row: any): DB {
@@ -73,474 +71,255 @@ export class AgentConfig {
   }
 
   async getDBList(): Promise<Array<DB>> {
-    return new Promise((resolve, reject) => {
-      this.db.all('SELECT * FROM DB', function (err, rows) {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve(
-          rows.map((row: any) => {
-            return AgentConfig.parse(row);
-          }),
-        );
-      });
-    });
+    return await this.all<DB>('SELECT * FROM DB', [], AgentConfig.parse);
   }
 
   async getAPIList(name: string): Promise<Array<API>> {
-    return new Promise((resolve, reject) => {
-      this.db.all('SELECT * FROM API WHERE name = ?', [name], function (err, rows) {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve(
-          rows.map((row: any) => {
-            return AgentConfig.parseAPI(row);
-          }),
-        );
-      });
+    return await this.all<API>('SELECT * FROM API WHERE name = ?', [name], AgentConfig.parseAPI);
+  }
+
+  async insertDatabase(db: DB): Promise<void> {
+    await this.run(`INSERT INTO DB (name, type, options) VALUES (?, ?, ?)`, [db.name, db.type, JSON.stringify(db.options)]);
+  }
+
+  async updateDatabase(db: DB): Promise<void> {
+    return await this.run(`UPDATE DB SET name = ?, options = ? WHERE name = ?`, [db.name, JSON.stringify(db.options), db.oldName!]);
+  }
+
+  async getDatabase(dbName: string): Promise<DB> {
+    return await this.get<DB>(`SELECT * FROM DB WHERE name = ?`, [dbName], AgentConfig.parse);
+  }
+
+  async deleteDatabase(dbName: string): Promise<void> {
+    await this.run(`DELETE FROM HISTORY WHERE name = ?`, [dbName]);
+    await this.run(`DELETE FROM API WHERE name = ?`, [dbName]);
+    await this.run(`DELETE FROM IOT WHERE name = ?`, [dbName]);
+    await this.run(`DELETE FROM DB WHERE name = ?`, [dbName]);
+  }
+
+  async setupTables(): Promise<void> {
+    await this.exec(`PRAGMA foreign_keys = ON`);
+    await this.run(
+      `CREATE TABLE IF NOT EXISTS DB ( 
+        name    TEXT    PRIMARY KEY, 
+        type    TEXT    NOT NULL, 
+        options TEXT    NOT NULL
+    )`,
+      [],
+    );
+    await this.run(
+      `CREATE TABLE IF NOT EXISTS DB ( 
+        name    TEXT    PRIMARY KEY, 
+        type    TEXT    NOT NULL, 
+        options TEXT    NOT NULL
+    )`,
+      [],
+    );
+    await this.run(
+      `
+    CREATE TABLE IF NOT EXISTS API (
+        path	          TEXT	  PRIMARY KEY,
+        name            TEXT    NOT NULL,
+        SQL	            TEXT	  NOT NULL,
+        injectionCheck  BOOLEAN NOT NULL,
+        desc            TEXT    NULL,
+        FOREIGN KEY (name) REFERENCES DB(name)
+    )`,
+      [],
+    );
+    await this.run(
+      `
+    CREATE TABLE IF NOT EXISTS IOT (
+        topic	      TEXT	    PRIMARY KEY,
+        name        TEXT      NOT NULL,
+        SQL	        TEXT	    NOT NULL,
+        interval    INTEGER   NOT NULL,
+        broker      TEXT      NOT NULL,
+        desc        TEXT    NULL,
+        FOREIGN KEY (name) REFERENCES DB(name)
+    )
+    `,
+      [],
+    );
+    await this.run(
+      `
+    CREATE TABLE IF NOT EXISTS HISTORY (
+        id	        INTEGER	  PRIMARY KEY,
+        name        TEXT      NOT NULL,
+        path        TEXT      NULL,
+        topic       TEXT      NULL,
+        SQL	        TEXT	    NOT NULL,
+        desc        TEXT      NULL,
+        createdAt   INTEGER   NOT NULL,
+        FOREIGN KEY (name) REFERENCES DB(name)
+        FOREIGN KEY (path) REFERENCES API(path),
+        FOREIGN KEY (topic) REFERENCES IOT(topic)
+    )
+    `,
+      [],
+    );
+  }
+
+  async insertIOT(iot: IOT): Promise<void> {
+    await this.run(`INSERT INTO IOT (topic, name, SQL, interval, broker, desc) VALUES (?, ?, ?, ?, ?, ?)`, [
+      iot.topic,
+      iot.name,
+      iot.SQL,
+      iot.interval,
+      JSON.stringify(iot.broker),
+      iot.desc,
+    ]);
+    await this.insertHistory({
+      name: iot.name,
+      topic: iot.topic,
+      SQL: iot.SQL,
+      desc: iot.desc,
+      createdAt: Date.now(),
     });
   }
 
-  insertDatabase(db: DB): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.db.run(`INSERT INTO DB (name, type, options) VALUES (?, ?, ?)`, [db.name, db.type, JSON.stringify(db.options)], function (err) {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve();
-      });
+  async updateIOT(iot: IOT): Promise<void> {
+    await this.run(
+      `
+      UPDATE IOT
+      SET
+        topic = ?,
+        name = ?,
+        SQL = ?,
+        interval = ?,
+        broker = ?,
+        desc = ?
+      WHERE
+        topic = ?
+      `,
+      [iot.topic, iot.name, iot.SQL, iot.interval, JSON.stringify(iot.broker), iot.desc, iot.oldTopic!],
+    );
+
+    await this.insertHistory({
+      name: iot.name,
+      topic: iot.topic,
+      SQL: iot.SQL,
+      desc: iot.desc,
+      createdAt: Date.now(),
     });
   }
 
-  updateDatabase(db: DB): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.db.run(`UPDATE DB SET name = ?, options = ? WHERE name = ?`, [db.name, JSON.stringify(db.options), db.oldName!], function (err) {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve();
-      });
-    });
+  async deleteIOT(topic: string): Promise<void> {
+    await this.run('DELETE FROM HISTORY WHERE topic = ?', [topic]);
+    await this.run('DELETE FROM IOT WHERE topic = ?', [topic]);
   }
 
-  getDatabase(dbName: string): Promise<DB> {
-    return new Promise((resolve, reject) => {
-      this.db.get(`SELECT * FROM DB WHERE name = ?`, [dbName], function (err, res) {
-        if (err) {
-          reject(err);
-          return;
-        }
-        if (!res) {
-          reject('Removed database');
-          return;
-        }
-        resolve(AgentConfig.parse(res));
-      });
-    });
+  async getIOT(topic: string): Promise<IOT> {
+    return this.get<IOT>('SELECT * FROM IOT WHERE topic = ?', [topic], AgentConfig.parseIOT);
   }
 
-  deleteDatabase(dbName: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      // 데이터 베이스에 할당된 API, IOT 삭제
-      this.db.run(`DELETE FROM API WHERE name = ?`, [dbName], err => {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        this.db.run(`DELETE FROM IOT WHERE name = ?`, [dbName], err => {
-          if (err) {
-            reject(err);
-            return;
-          }
-
-          this.db.run(`DELETE FROM DB WHERE name = ?`, [dbName], function (err) {
-            if (err) {
-              reject(err);
-              return;
-            }
-            resolve();
-          });
-        });
-      });
-    });
+  async getIOTList(name: string): Promise<IOT[]> {
+    return await this.all<IOT>('SELECT * FROM IOT WHERE name = ?', [name], AgentConfig.parseIOT);
   }
 
-  setupTables(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.db.exec(`PRAGMA foreign_keys = ON`, err => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        this.db.run(
-          `CREATE TABLE IF NOT EXISTS DB ( 
-            name    TEXT    PRIMARY KEY, 
-            type    TEXT    NOT NULL, 
-            options TEXT    NOT NULL
-        )`,
-          err => {
-            if (err) {
-              reject(err);
-              return;
-            }
-            this.db.run(
-              `
-            CREATE TABLE IF NOT EXISTS API (
-                path	          TEXT	  PRIMARY KEY,
-                name            TEXT    NOT NULL,
-                SQL	            TEXT	  NOT NULL,
-                injectionCheck  BOOLEAN NOT NULL,
-                desc            TEXT    NULL,
-                FOREIGN KEY (name) REFERENCES DB(name)
-            )
-            `,
-              err => {
-                if (err) {
-                  reject(err);
-                  return;
-                }
-                this.db.run(
-                  `
-                CREATE TABLE IF NOT EXISTS IOT (
-                    topic	      TEXT	    PRIMARY KEY,
-                    name        TEXT      NOT NULL,
-                    SQL	        TEXT	    NOT NULL,
-                    interval    INTEGER   NOT NULL,
-                    broker      TEXT      NOT NULL,
-                    desc        TEXT    NULL,
-                    FOREIGN KEY (name) REFERENCES DB(name)
-                )
-                `,
-                  err => {
-                    if (err) {
-                      reject(err);
-                      return;
-                    }
-
-                    this.db.run(
-                      `
-                    CREATE TABLE IF NOT EXISTS HISTORY (
-                        id	        INTEGER	  PRIMARY KEY,
-                        name        TEXT      NOT NULL,
-                        path        TEXT      NULL,
-                        topic       TEXT      NULL,
-                        SQL	        TEXT	    NOT NULL,
-                        desc        TEXT      NULL,
-                        createdAt   INTEGER   NOT NULL,
-                        FOREIGN KEY (name) REFERENCES DB(name)
-                        FOREIGN KEY (path) REFERENCES API(path),
-                        FOREIGN KEY (topic) REFERENCES IOT(topic)
-                    )
-                    `,
-                      err => {
-                        if (err) {
-                          reject(err);
-                          return;
-                        }
-
-                        resolve();
-                      },
-                    );
-                  },
-                );
-              },
-            );
-          },
-        );
-      });
-    });
+  async getAllIOT(): Promise<IOT[]> {
+    return await this.all<IOT>('SELECT * FROM IOT', [], AgentConfig.parseIOT);
   }
 
-  insertIOT(iot: IOT): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        `INSERT INTO IOT (topic, name, SQL, interval, broker, desc) VALUES (?, ?, ?, ?, ?, ?)`,
-        [iot.topic, iot.name, iot.SQL, iot.interval, JSON.stringify(iot.broker), iot.desc],
-        err => {
-          if (err) {
-            reject(err);
-            return;
-          }
-
-          this.insertHistory({
-            name: iot.name,
-            topic: iot.topic,
-            SQL: iot.SQL,
-            desc: iot.desc,
-            createdAt: Date.now(),
-          })
-            .then(resolve)
-            .catch(reject);
-        },
-      );
-    });
-  }
-
-  updateIOT(iot: IOT): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        `
-        UPDATE IOT
-        SET
-          topic = ?,
-          name = ?,
-          SQL = ?,
-          interval = ?,
-          broker = ?,
-          desc = ?
-        WHERE
-          topic = ?
-        `,
-        [iot.topic, iot.name, iot.SQL, iot.interval, JSON.stringify(iot.broker), iot.desc, iot.oldTopic!],
-        err => {
-          if (err) {
-            reject(err);
-            return;
-          }
-
-          this.insertHistory({
-            name: iot.name,
-            topic: iot.topic,
-            SQL: iot.SQL,
-            desc: iot.desc,
-            createdAt: Date.now(),
-          })
-            .then(resolve)
-            .catch(reject);
-        },
-      );
-    });
-  }
-
-  deleteIOT(topic: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.db.run('DELETE FROM HISTORY WHERE topic = ?', [topic], err => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        this.db.run('DELETE FROM IOT WHERE topic = ?', [topic], function (err) {
-          if (err) {
-            reject(err);
-            return;
-          }
-
-          resolve();
-        });
-      });
-    });
-  }
-
-  getIOT(topic: string): Promise<IOT> {
-    return new Promise((resolve, reject) => {
-      this.db.get('SELECT * FROM IOT WHERE topic = ?', [topic], function (err, res) {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        if (!res) {
-          reject('Removed topic.');
-          return;
-        }
-        resolve(AgentConfig.parseIOT(res));
-      });
-    });
-  }
-
-  getIOTList(name: string): Promise<IOT[]> {
-    return new Promise((resolve, reject) => {
-      this.db.all('SELECT * FROM IOT WHERE name = ?', [name], function (err, res) {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        resolve(
-          res.map((row: any) => {
-            return AgentConfig.parseIOT(row);
-          }),
-        );
-      });
-    });
-  }
-
-  getAllIOT(): Promise<IOT[]> {
-    return new Promise((resolve, reject) => {
-      this.db.all('SELECT * FROM IOT', function (err, res) {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        resolve(
-          res.map((row: any) => {
-            return AgentConfig.parseIOT(row);
-          }),
-        );
-      });
-    });
-  }
-
-  getHistoryList(name: string, path: string | null, topic: string | null): Promise<HISTORY[]> {
-    return new Promise((resolve, reject) => {
-      const sql = `
+  async getHistoryList(name: string, path: string | null, topic: string | null): Promise<HISTORY[]> {
+    const sql = `
         SELECT * FROM HISTORY
         WHERE name = ?
           AND (path = ? OR (? IS NULL AND path IS NULL))
           AND (topic = ? OR (? IS NULL AND topic IS NULL))
       `;
-      const params = [name, path, path, topic, topic];
-      this.db.all(sql, params, (err, rows: any[]) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve(rows.map((row: any) => AgentConfig.parseHistory(row)));
-      });
+    const params = [name, path, path, topic, topic];
+    return await this.all<HISTORY>(sql, params, AgentConfig.parseHistory);
+  }
+
+  async insertAPI(api: API): Promise<void> {
+    await this.run(`INSERT INTO API (path, name, SQL, injectionCheck, desc) VALUES (?, ?, ?, ?, ?)`, [
+      api.path,
+      api.name,
+      api.SQL,
+      api.injectionCheck,
+      api.desc,
+    ]);
+
+    await this.insertHistory({
+      name: api.name,
+      path: api.path,
+      SQL: api.SQL,
+      desc: api.desc,
+      createdAt: Date.now(),
     });
   }
 
-  insertAPI(api: API): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        `INSERT INTO API (path, name, SQL, injectionCheck, desc) VALUES (?, ?, ?, ?, ?)`,
-        [api.path, api.name, api.SQL, api.injectionCheck, api.desc],
-        err => {
-          if (err) {
-            reject(err);
-            return;
-          }
-
-          this.insertHistory({
-            name: api.name,
-            path: api.path,
-            SQL: api.SQL,
-            desc: api.desc,
-            createdAt: Date.now(),
-          })
-            .then(resolve)
-            .catch(reject);
-        },
-      );
+  async updateAPI(api: API): Promise<void> {
+    await this.run(
+      `
+    UPDATE API 
+    SET 
+      path = ?, 
+      name = ?, 
+      SQL = ?, 
+      injectionCheck = ?,
+      desc = ?
+    WHERE path = ?
+    `,
+      [api.path, api.name, api.SQL, api.injectionCheck, api.desc, api.oldPath!],
+    );
+    await this.insertHistory({
+      name: api.name,
+      path: api.path,
+      SQL: api.SQL,
+      desc: api.desc,
+      createdAt: Date.now(),
     });
   }
 
-  updateAPI(api: API): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        `
-      UPDATE API 
-      SET 
-        path = ?, 
-        name = ?, 
-        SQL = ?, 
-        injectionCheck = ?,
-        desc = ?
-      WHERE path = ?
-      `,
-        [api.path, api.name, api.SQL, api.injectionCheck, api.desc, api.oldPath!],
-        err => {
-          if (err) {
-            reject(err);
-            return;
-          }
-
-          this.insertHistory({
-            name: api.name,
-            path: api.path,
-            SQL: api.SQL,
-            desc: api.desc,
-            createdAt: Date.now(),
-          })
-            .then(resolve)
-            .catch(reject);
-        },
-      );
-    });
+  async deleteAPI(path: string): Promise<void> {
+    await this.run('DELETE FROM HISTORY WHERE path = ?', [path]);
+    await this.run('DELETE FROM API WHERE path = ?', [path]);
   }
 
-  deleteAPI(path: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.db.run('DELETE FROM HISTORY WHERE path = ?', [path], err => {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        this.db.run('DELETE FROM API WHERE path = ?', [path], function (err) {
-          if (err) {
-            reject(err);
-            return;
-          }
-
-          resolve();
-        });
-      });
-    });
+  async getAPI(path: string): Promise<API> {
+    return await this.get<API>('SELECT * FROM API WHERE path = ?', [path], AgentConfig.parseAPI);
   }
 
-  getAPI(path: string): Promise<API> {
-    return new Promise((resolve, reject) => {
-      this.db.get('SELECT * FROM API WHERE path = ?', [path], function (err, res) {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        if (!res) {
-          reject('Removed API');
-          return;
-        }
-
-        resolve(AgentConfig.parseAPI(res));
-      });
-    });
+  async getAPIListAll(): Promise<API[]> {
+    return await this.all<API>('SELECT * FROM API', [], AgentConfig.parseAPI);
   }
 
-  getAPIListAll(): Promise<API[]> {
-    return new Promise((resolve, reject) => {
-      this.db.all('SELECT * FROM API', function (err, res) {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve(
-          res.map((row: any) => {
-            return AgentConfig.parseAPI(row);
-          }),
-        );
-      });
-    });
+  async insertHistory(history: HISTORY): Promise<void> {
+    const { name, path, topic, SQL, desc, createdAt } = history;
+
+    return await this.run(`INSERT INTO HISTORY (name, path, topic, SQL, desc, createdAt) VALUES (?, ?, ?, ?, ?, ?)`, [
+      name,
+      path ?? null,
+      topic ?? null,
+      SQL,
+      desc ?? null,
+      createdAt,
+    ]);
   }
 
-  insertHistory(history: HISTORY): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const { name, path, topic, SQL, desc, createdAt } = history;
-
-      this.db.run(
-        `INSERT INTO HISTORY (name, path, topic, SQL, desc, createdAt) VALUES (?, ?, ?, ?, ?, ?)`,
-        [name, path ?? null, topic ?? null, SQL, desc ?? null, createdAt],
-        function (err) {
-          if (err) {
-            reject(err);
-            return;
-          }
-          resolve();
-        },
-      );
-    });
+  async deleteHistory(id: number): Promise<void> {
+    return await this.run('DELETE FROM HISTORY WHERE id = ?', [id]);
   }
 
-  deleteHistory(id: number): Promise<void> {
+  /**
+   * Delete all history entries matching name, path, and topic.
+   */
+  async deleteHistoryAll(name: string, path: string | null, topic: string | null): Promise<void> {
+    const sql = `
+        DELETE FROM HISTORY
+        WHERE name = ?
+          AND (path = ? OR (? IS NULL AND path IS NULL))
+          AND (topic = ? OR (? IS NULL AND topic IS NULL))
+      `;
+    const params = [name, path, path, topic, topic];
+    return await this.run(sql, params);
+  }
+
+  async run(sql: string, params: any[]): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.run('DELETE FROM HISTORY WHERE id = ?', [id], function (err) {
+      this.db.run(sql, params, function (err) {
         if (err) {
           reject(err);
           return;
@@ -550,23 +329,54 @@ export class AgentConfig {
     });
   }
 
-  /**
-   * Delete all history entries matching name, path, and topic.
-   */
-  deleteHistoryAll(name: string, path: string | null, topic: string | null): Promise<void> {
+  async get<T>(sql: string, params: any[], parser: (obj: any) => T): Promise<T> {
     return new Promise((resolve, reject) => {
-      const sql = `
-        DELETE FROM HISTORY
-        WHERE name = ?
-          AND (path = ? OR (? IS NULL AND path IS NULL))
-          AND (topic = ? OR (? IS NULL AND topic IS NULL))
-      `;
-      const params = [name, path, path, topic, topic];
-      this.db.run(sql, params, function (err) {
+      this.db.get(sql, params, function (err, res) {
         if (err) {
           reject(err);
           return;
         }
+
+        if (!res) {
+          reject('Removed Data');
+          return;
+        }
+
+        resolve(parser(res));
+      });
+    });
+  }
+
+  async all<T>(sql: string, params: any[], parser: (obj: any) => T): Promise<T[]> {
+    return new Promise((resolve, reject) => {
+      this.db.all(sql, params, function (err, res) {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        if (!res) {
+          reject('Removed Data');
+          return;
+        }
+
+        resolve(
+          res.map((row: any) => {
+            return parser(row);
+          }),
+        );
+      });
+    });
+  }
+
+  async exec(sql: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.db.exec(sql, err => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
         resolve();
       });
     });

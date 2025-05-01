@@ -170,8 +170,12 @@ describe('AgentConfig History Logging', () => {
     await agentConfig.insertAPI(api);
     // insert one IOT history
     const iot: IOT = {
-      topic: 'topic1', name: 'dbX', SQL: 'IOT_Q', interval: 10,
-      broker: { host: 'h', clientId: 'c', id: 'i', password: 'p' }, desc: 'iot desc'
+      topic: 'topic1',
+      name: 'dbX',
+      SQL: 'IOT_Q',
+      interval: 10,
+      broker: { host: 'h', clientId: 'c', id: 'i', password: 'p' },
+      desc: 'iot desc',
     };
     await agentConfig.insertIOT(iot);
     // verify both histories exist
@@ -213,7 +217,7 @@ describe('AgentConfig CRUD operations', () => {
     await agentConfig.updateDatabase(updated);
     dbList = await agentConfig.getDBList();
     expect(dbList).toEqual([{ name: 'db2', type: 'type1', options: { host: 'h2' } }]);
-    await expect(agentConfig.getDatabase('db1')).rejects.toEqual('Removed database');
+    await expect(agentConfig.getDatabase('db1')).rejects.toEqual('Removed Data');
     const got2 = await agentConfig.getDatabase('db2');
     expect(got2).toEqual({ name: 'db2', type: 'type1', options: { host: 'h2' } });
     // delete
@@ -248,7 +252,7 @@ describe('AgentConfig CRUD operations', () => {
     await agentConfig.deleteAPI('/p');
     const after = await agentConfig.getAPIList('dbA');
     expect(after).toEqual([]);
-    await expect(agentConfig.getAPI('/p')).rejects.toEqual('Removed API');
+    await expect(agentConfig.getAPI('/p')).rejects.toEqual('Removed Data');
   });
 
   test('IOT operations: insert, list, get, listAll, update, delete', async () => {
@@ -278,6 +282,6 @@ describe('AgentConfig CRUD operations', () => {
     await agentConfig.deleteIOT('t1');
     const after = await agentConfig.getIOTList('dbI');
     expect(after).toEqual([]);
-    await expect(agentConfig.getIOT('t1')).rejects.toEqual('Removed topic.');
+    await expect(agentConfig.getIOT('t1')).rejects.toEqual('Removed Data');
   });
 });
