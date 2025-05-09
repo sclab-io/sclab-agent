@@ -8,21 +8,52 @@ jobs:
   publish_image:
     runs-on: ubuntu-latest
     steps:
-      - name: checkout
+      - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # git tag 정보가 필요함
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm  
+          cache: npm
+
       - name: Install dependencies
         run: npm install
+
       - name: Run tests
         run: npm run test
-      - name: build
+
+      - name: Get latest version
+        id: get_version
         run: |
-          npm run build
-          docker build . -t sclabio/sclab-agent:latest
-      - name: publish
+          latest_tag=$(git tag --sort=-v:refname | head -n 1)
+          if [[ "$latest_tag" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            major="${BASH_REMATCH[1]}"
+            minor="${BASH_REMATCH[2]}"
+            patch="${BASH_REMATCH[3]}"
+            new_patch=$((patch + 1))
+            new_tag="${major}.${minor}.${new_patch}"
+          else
+            new_tag="1.0.0"
+          fi
+          echo "version=$new_tag" >> $GITHUB_OUTPUT
+
+      - name: Build Docker image
         run: |
-          docker login -u sclabio -p ${{ secrets.DOCKER_HUB_TOKEN }}
+          docker build . \
+            -t sclabio/sclab-agent:latest \
+            -t sclabio/sclab-agent:${{ steps.get_version.outputs.version }}
+
+      - name: Push Docker images
+        run: |
+          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u sclabio --password-stdin
           docker push sclabio/sclab-agent:latest
+          docker push sclabio/sclab-agent:${{ steps.get_version.outputs.version }}
+
+      - name: Create git tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag -a v${{ steps.get_version.outputs.version }} -m "Release v${{ steps.get_version.outputs.version }}"
+          git push origin v${{ steps.get_version.outputs.version }}
