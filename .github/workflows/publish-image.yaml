@@ -41,6 +41,7 @@ jobs:
 
       - name: Build Docker image
         run: |
+          npm run build
           docker build . \
             -t sclabio/sclab-agent:latest \
             -t sclabio/sclab-agent:${{ steps.get_version.outputs.version }}
