@@ -63,8 +63,8 @@ describe('AgentConfig History Logging', () => {
     const historyList: HISTORY[] = await agentConfig.getHistoryList('db1', api.path, null);
     expect(historyList).toHaveLength(2);
     const [first, second] = historyList;
-    expect(first.SQL).toBe('SELECT 1');
-    expect(second.SQL).toBe('SELECT 2');
+    expect(first.SQL).toBe('SELECT 2');
+    expect(second.SQL).toBe('SELECT 1');
   });
 
   test('insertIOT logs a history entry', async () => {
