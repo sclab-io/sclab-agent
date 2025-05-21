@@ -227,6 +227,7 @@ export class AgentConfig {
         WHERE name = ?
           AND (path = ? OR (? IS NULL AND path IS NULL))
           AND (topic = ? OR (? IS NULL AND topic IS NULL))
+        ORDER BY createdAt DESC
       `;
     const params = [name, path, path, topic, topic];
     return await this.all<HISTORY>(sql, params, AgentConfig.parseHistory);
