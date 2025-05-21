@@ -156,7 +156,7 @@ export class ManageHandler extends CommonHandler {
           return await ManageHandler.getHistoryList(data);
         }
         case '/manage/history/delete': {
-          const data: any = req.body;
+          const data: any = req.body['id'] as string;
           return await ManageHandler.historyDelete(data);
         }
         case '/manage/history/delete/all': {
