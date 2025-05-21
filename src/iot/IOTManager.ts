@@ -126,7 +126,6 @@ export class IOTManager {
           IOTManager.clientMap.delete(key);
           resolve();
         });
-        IOTManager.clientMap.delete(key);
       } else {
         iotClient.count--;
         resolve();

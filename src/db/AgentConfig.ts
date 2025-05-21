@@ -100,17 +100,9 @@ export class AgentConfig {
   async setupTables(): Promise<void> {
     await this.exec(`PRAGMA foreign_keys = ON`);
     await this.run(
-      `CREATE TABLE IF NOT EXISTS DB ( 
-        name    TEXT    PRIMARY KEY, 
-        type    TEXT    NOT NULL, 
-        options TEXT    NOT NULL
-    )`,
-      [],
-    );
-    await this.run(
-      `CREATE TABLE IF NOT EXISTS DB ( 
-        name    TEXT    PRIMARY KEY, 
-        type    TEXT    NOT NULL, 
+      `CREATE TABLE IF NOT EXISTS DB (
+        name    TEXT    PRIMARY KEY,
+        type    TEXT    NOT NULL,
         options TEXT    NOT NULL
     )`,
       [],
