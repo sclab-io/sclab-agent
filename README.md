@@ -2,6 +2,8 @@
 
 ## installation
 
+Before running the agent, ensure that `unixODBC` is installed on your system. This library is required for ODBC database connectivity.
+
 ### .env
 
 create .env file and paste this env vars
