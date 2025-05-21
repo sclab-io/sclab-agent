@@ -133,7 +133,7 @@ npx pm2 stop 0
 $ curl https://localhost:7890/ -k -H 'authorization: your key from console log'
 ~~~
 
-Reponse
+Response
 
 ~~~json
 {"status":"ok","result":"Authentication complete."}
