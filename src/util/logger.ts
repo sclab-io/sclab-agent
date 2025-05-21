@@ -50,7 +50,7 @@ if (logDir) {
         datePattern: 'YYYY-MM-DD',
         dirname: logDir + '/error', // log file /logs/error/*.log in save
         filename: `%DATE%.log`,
-        maxFiles: 31, // 30 Days saved
+        maxFiles: 31, // 31 Days saved
         handleExceptions: true,
         json: false,
         zippedArchive: true,
