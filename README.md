@@ -117,6 +117,16 @@ $ npm run dev
 ## log
 
 ~~~bash
+# install logrotate
+npx pm2 install pm2-logrotate
+npx pm2 set pm2-logrotate:max_size 100M
+npx pm2 set pm2-logrotate:compress true
+npx pm2 set pm2-logrotate:retain 31
+
+# pm2 log
+npx pm2 log
+
+# file log
 tail -f ./logs/debug/${DATE}.log
 tail -f ./logs/error/${DATE}.log
 ~~~

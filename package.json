@@ -29,7 +29,7 @@
     "eslint-plugin-prettier": "^4.2.1",
     "node-config": "^0.0.2",
     "nodemon": "^2.0.19",
-    "pm2": "^5.4.0",
+    "pm2": "^6.0.6",
     "prettier": "^2.7.1",
     "ts-jest": "^29.1.4",
     "ts-node": "^10.9.2",

@@ -17,8 +17,8 @@ module.exports = {
       ignore_watch: ['node_modules', 'logs'], // ignore files change
       max_memory_restart: '1G', // restart if process use more than 1G memory
       merge_logs: true, // if true, stdout and stderr will be merged and sent to pm2 log
-      output: 'NULL', // pm2 log file
-      error: 'NULL', // pm2 error log file
+      output: 'logs/debug.log', // pm2 log file
+      error: 'logs/error.log', // pm2 error log file
       env: {
         NODE_ENV: 'production',
       },
@@ -35,8 +35,8 @@ module.exports = {
       ignore_watch: ['node_modules', 'logs'], // ignore files change
       max_memory_restart: '1G', // restart if process use more than 1G memory
       merge_logs: true, // if true, stdout and stderr will be merged and sent to pm2 log
-      output: 'NULL', // pm2 log file
-      error: 'NULL', // pm2 error log file
+      output: 'logs/debug.log', // pm2 log file
+      error: 'logs/error.log', // pm2 error log file
       env: {
         NODE_ENV: 'development',
       },
