@@ -310,11 +310,17 @@ export class ManageHandler extends CommonHandler {
 
   static async dbConnectionTest(dbName: string): Promise<SCLABResponseData> {
     singleStringSchema.parse(dbName);
+
     const result = await DBManager.testConnection(dbName);
     if (result) {
       return {
         status: 'ok',
         result: 'DB Connected',
+      };
+    } else {
+      return {
+        status: 'error',
+        result: 'Cannot connect database',
       };
     }
   }
