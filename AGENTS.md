@@ -4,7 +4,7 @@ This repository is a Node.js/TypeScript project providing an HTTPS API server fo
 
 ## Directory Structure
 
-```
+```bash
 src/
 ├── api/        - API endpoint handlers
 ├── app.ts      - main application setup
@@ -29,7 +29,8 @@ Key environment variables control log paths, JWT keys, TLS keys, database option
 
 ## Testing & Deployment
 
-- Run tests with `npm test` (Jest with ts-jest).
+- Run tests with `npm run test` (Jest with ts-jest).
+- Run lint with `npm run lint` (eslint).
 - Install `unixODBC` and development headers so ODBC-related tests can compile
   and run. See the README for platform-specific commands.
 - Deployment uses Docker or PM2; see provided configs and scripts.
