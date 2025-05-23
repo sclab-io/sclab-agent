@@ -1,5 +1,6 @@
 {
   "name": "sclab-agent",
+  "description": "SCLAB Database agent for SCLAB Studio.",
   "module": "./src/index.ts",
   "devDependencies": {
     "@swc/cli": "^0.1.57",
