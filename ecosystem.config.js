@@ -8,7 +8,7 @@ module.exports = {
   apps: [
     {
       name: 'prod', // pm2 start App name
-      script: 'dist/index.js',
+      script: 'dist/src/index.js',
       exec_mode: 'cluster', // 'cluster' or 'fork'
       instance_var: 'INSTANCE_ID', // instance variable
       instances: 1, // pm2 instance count
@@ -48,7 +48,7 @@ module.exports = {
       host: '0.0.0.0',
       ref: 'origin/master',
       repo: 'git@github.com:repo.git',
-      path: 'dist/index.js',
+      path: 'dist/src/index.js',
       'post-deploy': 'npm install && npm run build && pm2 reload ecosystem.config.js --only prod',
     },
   },
