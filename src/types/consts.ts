@@ -6,6 +6,7 @@ export const DB_TYPE: {
   SQL_SERVER: string;
   ODBC: string;
   HANA: string;
+  BIGQUERY: string;
 } = {
   TRINO: 'trino',
   MYSQL: 'mysql',
@@ -14,4 +15,5 @@ export const DB_TYPE: {
   SQL_SERVER: 'sqlserver',
   ODBC: 'odbc',
   HANA: 'hana',
+  BIGQUERY: 'bigquery',
 };

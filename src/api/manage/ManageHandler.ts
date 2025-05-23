@@ -42,12 +42,12 @@ const dbOptionsSchema = z.object({
 });
 const dbInsertSchema = z.object({
   name: z.string(),
-  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'postgres', 'hana']),
+  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'postgres', 'hana', 'bigquery']),
   options: dbOptionsSchema,
 });
 const dbUpdateSchema = z.object({
   name: z.string(),
-  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'postgres', 'hana']),
+  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'postgres', 'hana', 'bigquery']),
   oldName: z.string(),
   options: dbOptionsSchema,
 });
@@ -370,7 +370,9 @@ export class ManageHandler extends CommonHandler {
         await ManageHandler.dbDelete(data.name);
       }
     } catch (e) {
-      if (e === 'Removed database') await ManageHandler.dbInsert(data);
+      if (typeof e === 'string' && e.startsWith('Removed')) {
+        await ManageHandler.dbInsert(data);
+      }
     }
 
     let result: SCLABResponseData;
