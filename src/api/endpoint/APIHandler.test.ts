@@ -43,7 +43,7 @@ describe('APIHandler', () => {
       desc: '',
     });
     // spy on runSQL
-    const runSQLSpy = jest.spyOn(DBManager, 'runSQL').mockResolvedValue([{ id: 1 }]);
+    jest.spyOn(DBManager, 'runSQL').mockResolvedValue([{ id: 1 }]);
     const req = { path: '/test', query: { id: '1' }, headers: {} } as any;
     const res = await APIHandler.handle(req);
     // expect the stubbed runSQL to produce the result

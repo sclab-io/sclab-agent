@@ -11,11 +11,9 @@ import odbc from 'odbc';
 import { App } from '../app';
 import postgres from 'pg';
 import hana from '@sap/hana-client';
-import { createTunnel, ForwardOptions, ServerOptions, TunnelOptions, SshOptions } from 'tunnel-ssh';
+import { createTunnel, ForwardOptions, TunnelOptions, SshOptions } from 'tunnel-ssh';
 import { AddressInfo, Server } from 'net';
 import { Client } from 'ssh2';
-import { on } from 'events';
-import { resolve } from 'path';
 import { SecretManager } from '@/config/SecretManager';
 
 // BigInt bug fix to string
@@ -632,13 +630,13 @@ export class DBManager {
             const client = dbClient.client as presto.Client;
             client.execute({
               query: sql,
-              state: function (error, query_id, stats) {
+              state: function (error) {
                 if (error) {
                   logger.error(error);
                   reject(error);
                 }
               },
-              columns: function (error, data) {
+              columns: function (error) {
                 if (error) {
                   logger.error(error);
                   reject(error);
@@ -660,7 +658,7 @@ export class DBManager {
                   rows!.push(obj);
                 }
               },
-              success: function (error, stats) {
+              success: function (error) {
                 if (error) {
                   logger.error(error);
                   reject(error);

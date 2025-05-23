@@ -3,7 +3,6 @@ import figlet from 'figlet';
 import {
   AGENT_DB_PATH,
   JWT_PRIVATE_KEY_PATH,
-  JWT_PUBLIC_KEY_PATH,
   LD_LIBRARY_PATH,
   LOG_DIR,
   NODE_ENV,
@@ -15,7 +14,7 @@ import {
   USE_MYBATIS,
 } from './config';
 import jwt from 'jsonwebtoken';
-import type { API, DB, SCLABResponseData } from './types';
+import type { API, SCLABResponseData } from './types';
 import { AgentConfig } from './db/AgentConfig';
 import { DBManager } from './db/DBManager';
 import { APIHandler } from './api/endpoint/APIHandler';
@@ -23,7 +22,7 @@ import { ManageHandler } from './api/manage/ManageHandler';
 import MybatisMapper from 'mybatis-mapper';
 import { IOTManager } from './iot/IOTManager';
 import oracledb from 'oracledb';
-import express, { NextFunction, Request, Response } from 'express';
+import express, { Request, Response } from 'express';
 import https from 'https';
 import fs from 'fs';
 import compression from 'compression';
@@ -33,7 +32,6 @@ import morgan from 'morgan';
 import { jwtMiddleware } from './middlewares/jwt.middleware';
 import helmet from 'helmet';
 import errorMiddleware from './middlewares/error.middleware';
-import { resolve } from 'path';
 
 export class App {
   public port: number | string;
@@ -66,7 +64,7 @@ export class App {
   }
 
   public async init() {
-    this.app.all('/*', async (req: Request, res: Response, next: NextFunction) => {
+    this.app.all('/*', async (req: Request, res: Response) => {
       const ip = req.headers['x-forwarded-for'] || req.ip;
       logger.info(`path: ${req.path}, ip: ${ip}`);
 

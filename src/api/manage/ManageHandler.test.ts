@@ -1,7 +1,5 @@
 import { ManageHandler } from './ManageHandler';
 import { DBManager } from '../../db/DBManager';
-import { App } from '../../app';
-import { IOTManager } from '../../iot/IOTManager';
 import { replaceString } from '../../util/util';
 
 describe('ManageHandler', () => {

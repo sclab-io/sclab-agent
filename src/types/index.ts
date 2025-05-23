@@ -1,5 +1,4 @@
 import type { MqttClient } from 'mqtt';
-import sql from 'mssql';
 
 export interface SCLABRequestHeaders {
   authorization: string;

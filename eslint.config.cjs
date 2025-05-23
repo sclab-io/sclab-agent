@@ -7,6 +7,7 @@ module.exports = compat.config({
   parserOptions: {
     project: './tsconfig.json',
     tsconfigRootDir: __dirname,
+    warnOnUnsupportedTypeScriptVersion: false,
     sourceType: 'module',
     ecmaVersion: 2021,
   },
@@ -36,10 +37,10 @@ module.exports = compat.config({
   rules: {
     'prettier/prettier': 'error',
     '@typescript-eslint/no-explicit-any': 'off',
-    '@typescript-eslint/no-unused-vars': 'off',
-    '@typescript-eslint/no-unsafe-function-type': 'off',
+    '@typescript-eslint/no-unused-vars': 'error',
     '@typescript-eslint/no-inferrable-types': 'off',
     '@typescript-eslint/ban-types': 'off',
-    '@typescript-eslint/no-empty-function': 'off',
+    '@typescript-eslint/no-empty-function': 'error',
+    '@typescript-eslint/no-non-null-assertion': 'off',
   },
 });

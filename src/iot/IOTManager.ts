@@ -108,27 +108,31 @@ export class IOTManager {
 
   static async remove(topic: string): Promise<void> {
     return new Promise(async (resolve, reject) => {
-      // timer 중지
-      clearTimeout(IOTManager.timerMap.get(topic));
-      IOTManager.timerMap.delete(topic);
+      try {
+        // timer 중지
+        clearTimeout(IOTManager.timerMap.get(topic));
+        IOTManager.timerMap.delete(topic);
 
-      // client 관리
-      const iot = await App.agentConfig.getIOT(topic);
-      const key = IOTManager.getClientKey(iot);
-      if (!IOTManager.clientMap.has(key)) {
-        resolve();
-        return;
-      }
-
-      const iotClient = IOTManager.clientMap.get(key)!;
-      if (iotClient.count <= 1) {
-        iotClient.client.end(() => {
-          IOTManager.clientMap.delete(key);
+        // client 관리
+        const iot = await App.agentConfig.getIOT(topic);
+        const key = IOTManager.getClientKey(iot);
+        if (!IOTManager.clientMap.has(key)) {
           resolve();
-        });
-      } else {
-        iotClient.count--;
-        resolve();
+          return;
+        }
+
+        const iotClient = IOTManager.clientMap.get(key)!;
+        if (iotClient.count <= 1) {
+          iotClient.client.end(() => {
+            IOTManager.clientMap.delete(key);
+            resolve();
+          });
+        } else {
+          iotClient.count--;
+          resolve();
+        }
+      } catch (e) {
+        reject(e);
       }
     });
   }

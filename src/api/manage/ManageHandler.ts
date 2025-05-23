@@ -9,7 +9,6 @@ import MybatisMapper from 'mybatis-mapper';
 import { USE_MYBATIS } from '../../config';
 import { Request } from 'express';
 import { replaceString } from '../../util/util';
-import { AgentConfig } from '@/db/AgentConfig';
 
 const dbOptionsSchema = z.object({
   host: z.string(),
@@ -53,7 +52,6 @@ const dbUpdateSchema = z.object({
   options: dbOptionsSchema,
 });
 const singleStringSchema = z.string();
-const singleStringOptionalSchema = z.optional(z.string());
 const getSchemaSchema = z.object({
   name: z.string(),
   catalog: z.optional(z.string()),
