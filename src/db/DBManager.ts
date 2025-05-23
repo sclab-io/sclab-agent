@@ -570,7 +570,7 @@ export class DBManager {
       const segment = parts[i];
       if (segment.startsWith('__EN_') && segment.endsWith('__')) {
         const keyContent = segment.slice(5, segment.length - 2);
-        let value: string = process.env[keyContent];
+        const value: string = process.env[keyContent];
         parts[i] = value;
       }
     }
@@ -753,7 +753,7 @@ export class DBManager {
 
           case DB_TYPE.ORACLE: {
             const client = dbClient.client as oracledb.Pool;
-            let conn: oracledb.Connection = await client.getConnection();
+            const conn: oracledb.Connection = await client.getConnection();
             try {
               const result = await conn.execute(sql)!;
               const rows = [];

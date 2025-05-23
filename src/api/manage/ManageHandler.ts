@@ -235,7 +235,7 @@ export class ManageHandler extends CommonHandler {
 
   static async getHistoryList(data: { name: string; path?: string; topic?: string }): Promise<SCLABResponseData> {
     getHistorySchema.parse(data);
-    let result = await App.agentConfig.getHistoryList(data.name, data.path || null, data.topic || null);
+    const result = await App.agentConfig.getHistoryList(data.name, data.path || null, data.topic || null);
     return {
       status: 'ok',
       result,
@@ -266,7 +266,7 @@ export class ManageHandler extends CommonHandler {
 
   static async getTable(data: { name: string; catalog?: string; schema: string; table: string }): Promise<SCLABResponseData> {
     getTableSchema.parse(data);
-    let result = await DBManager.getTable(data);
+    const result = await DBManager.getTable(data);
     return {
       status: 'ok',
       result,
@@ -275,7 +275,7 @@ export class ManageHandler extends CommonHandler {
 
   static async getTables(data: { name: string; catalog?: string; schema: string }): Promise<SCLABResponseData> {
     getTablesSchema.parse(data);
-    let result = await DBManager.getTables(data);
+    const result = await DBManager.getTables(data);
     return {
       status: 'ok',
       result,

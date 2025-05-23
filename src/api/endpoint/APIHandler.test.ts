@@ -1,10 +1,10 @@
 // Mock config, App, and DBManager to isolate APIHandler tests
 jest.mock('../../config', () => ({ USE_MYBATIS: '0' }));
 jest.mock('../../app', () => ({
-  App: { agentConfig: { getAPI: jest.fn() } }
+  App: { agentConfig: { getAPI: jest.fn() } },
 }));
 jest.mock('../../db/DBManager', () => ({
-  DBManager: { runSQL: jest.fn() }
+  DBManager: { runSQL: jest.fn() },
 }));
 import { APIHandler } from './APIHandler';
 import { App } from '../../app';

@@ -5,7 +5,7 @@ export class SecretManager {
   private static awsSecretsManagerClient: SecretsManagerClient;
 
   static setupAWSSecretsManagerClient() {
-    let options: { region: string; credentials?: { accessKeyId: string; secretAccessKey: string } } = {
+    const options: { region: string; credentials?: { accessKeyId: string; secretAccessKey: string } } = {
       region: AWS_REGION,
     };
 

@@ -43,7 +43,7 @@ describe('util', () => {
 
   describe('hasSql', () => {
     test('detects SQL injection patterns', () => {
-      expect(hasSql("1 OR 1=1")).toBe(true);
+      expect(hasSql('1 OR 1=1')).toBe(true);
       expect(hasSql("'; DROP TABLE users; --")).toBe(true);
     });
 
