@@ -83,7 +83,11 @@ export class AgentConfig {
   }
 
   async updateDatabase(db: DB): Promise<void> {
-    return await this.run(`UPDATE DB SET name = ?, options = ? WHERE name = ?`, [db.name, JSON.stringify(db.options), db.oldName!]);
+    try {
+      return await this.run(`UPDATE DB SET name = ?, options = ? WHERE name = ?`, [db.name, JSON.stringify(db.options), db.oldName!]);
+    } catch (e) {
+      throw new Error('Cannot change database name.');
+    }
   }
 
   async getDatabase(dbName: string): Promise<DB> {
