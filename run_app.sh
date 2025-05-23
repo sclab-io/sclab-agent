@@ -2,4 +2,4 @@
 
 set -e
 export PORT=${PORT:-7890}
-exec node ${NODE_OPTIONS} dist/index.js
+exec node ${NODE_OPTIONS} dist/src/index.js
