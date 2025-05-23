@@ -50,10 +50,10 @@ TUNNEL_KEEP_ALIVE_INTERVAL_MS=3600000
 ### create JWT key
 
 ~~~bash
-$ mkdir jwt
-$ ssh-keygen -t rsa -b 4096 -m PEM -f ./jwt/jwtRS256.key
+mkdir jwt
+ssh-keygen -t rsa -b 4096 -m PEM -f ./jwt/jwtRS256.key
 # empty passphrase - just press enter
-$ openssl rsa -in ./jwt/jwtRS256.key -pubout -outform PEM -out ./jwt/jwtRS256.key.pub
+openssl rsa -in ./jwt/jwtRS256.key -pubout -outform PEM -out ./jwt/jwtRS256.key.pub
 ~~~
 
 ### create SSL key
@@ -109,13 +109,13 @@ openssl x509 -req -in ./cert/csr.pem -signkey ./cert/privkey.pem -out ./cert/cer
 
 ~~~bash
 # install packages
-$ npm install
+npm install
 
 # production mode
-$ npm run deploy:prod
+npm run deploy:prod
 
 # dev mode
-$ npm run dev
+npm run dev
 ~~~
 
 ## log
@@ -130,10 +130,10 @@ npx pm2 set pm2-logrotate:compress true
 npx pm2 set pm2-logrotate:retain 31
 
 # Generate Startup Script
-$ pm2 startup
+pm2 startup
 
 # Freeze your process list across server restart
-$ pm2 save
+pm2 save
 
 # pm2 log
 npx pm2 log
@@ -157,7 +157,7 @@ npx pm2 stop 0
 ~~~bash
 # You have to use -k option for avoid self signed certificate problem.
 # You can replace your certificate files from CA.
-$ curl https://localhost:7890/ -k -H 'authorization: your key from console log'
+curl https://localhost:7890/ -k -H 'authorization: your key from console log'
 ~~~
 
 Response
