@@ -1,5 +1,9 @@
 # sclab-agent
 
+## requirement
+
+* node.js 20.10.0
+
 ## installation
 
 Before running the agent, ensure that `unixODBC` is installed on your system. This library is required for ODBC database connectivity.
