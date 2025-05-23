@@ -312,10 +312,8 @@ export class DBManager {
 
         case DB_TYPE.BIGQUERY: {
           const client = new BigQuery({
-            projectId: db.options.projectId,
-            credentials: db.options.keyFile
-              ? JSON.parse(db.options.keyFile)
-              : undefined,
+            projectId: db.options.host,
+            credentials: JSON.parse(db.options.password),
           });
           DBManager.dbMap.set(db.name, {
             client,
@@ -536,34 +534,34 @@ export class DBManager {
             break;
           }
 
-      case DB_TYPE.ODBC: {
-        try {
-          const client = dbClient.client as odbc.Pool;
-          if (client) {
-            resolve(true);
-          } else {
-            throw new Error('ODBC Connection fail');
+          case DB_TYPE.ODBC: {
+            try {
+              const client = dbClient.client as odbc.Pool;
+              if (client) {
+                resolve(true);
+              } else {
+                throw new Error('ODBC Connection fail');
+              }
+            } catch (e) {
+              console.error(e);
+              logger.info(`Cannot connect to ODBC. Please check your config.`);
+              reject(e);
+            }
+            break;
           }
-        } catch (e) {
-          console.error(e);
-          logger.info(`Cannot connect to ODBC. Please check your config.`);
-          reject(e);
-        }
-        break;
-      }
 
-      case DB_TYPE.BIGQUERY: {
-        try {
-          const client = dbClient.client as BigQuery;
-          await client.query('SELECT 1');
-          resolve(true);
-        } catch (e) {
-          console.error(e);
-          logger.info(`Cannot connect to BigQuery. Please check your config.`);
-          reject(e);
-        }
-        break;
-      }
+          case DB_TYPE.BIGQUERY: {
+            try {
+              const client = dbClient.client as BigQuery;
+              await client.query('SELECT 1');
+              resolve(true);
+            } catch (e) {
+              console.error(e);
+              logger.info(`Cannot connect to BigQuery. Please check your config.`);
+              reject(e);
+            }
+            break;
+          }
         }
       } catch (e) {
         reject(e);
@@ -892,36 +890,36 @@ export class DBManager {
 
             break;
           }
-        case DB_TYPE.HANA: {
-          if (db.options.database) {
-            resolve([{ name: db.options.database }]);
-            return;
-          }
-          result = (
-            await DBManager.runSQL(
-              dbName,
-              `
+          case DB_TYPE.HANA: {
+            if (db.options.database) {
+              resolve([{ name: db.options.database }]);
+              return;
+            }
+            result = (
+              await DBManager.runSQL(
+                dbName,
+                `
               SELECT DATABASE_NAME FROM M_DATABASES
               `,
               )
-          ).map((row: { DATABASE_NAME: string }) => {
-            return {
-              name: row.DATABASE_NAME,
-            };
-          });
-          break;
-        }
-        case DB_TYPE.BIGQUERY: {
-          if (db.options.projectId) {
-            result = [{ name: db.options.projectId }];
-          } else {
-            result = [];
+            ).map((row: { DATABASE_NAME: string }) => {
+              return {
+                name: row.DATABASE_NAME,
+              };
+            });
+            break;
           }
-          break;
-        }
-        default: {
-          throw new Error('Retrieving catalogs is only supported in Trino or Presto.');
-        }
+          case DB_TYPE.BIGQUERY: {
+            if (db.options.host) {
+              result = [{ name: db.options.host }];
+            } else {
+              result = [];
+            }
+            break;
+          }
+          default: {
+            throw new Error('Retrieving catalogs is only supported in Trino or Presto.');
+          }
         }
 
         resolve(result);

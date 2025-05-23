@@ -39,8 +39,6 @@ const dbOptionsSchema = z.object({
   sshUser: z.optional(z.string()),
   sshPassword: z.optional(z.string()),
   sshPrivateKey: z.optional(z.string()),
-  projectId: z.optional(z.string()),
-  keyFile: z.optional(z.string()),
 });
 const dbInsertSchema = z.object({
   name: z.string(),
@@ -372,7 +370,9 @@ export class ManageHandler extends CommonHandler {
         await ManageHandler.dbDelete(data.name);
       }
     } catch (e) {
-      if (e === 'Removed database') await ManageHandler.dbInsert(data);
+      if (typeof e === 'string' && e.startsWith('Removed')) {
+        await ManageHandler.dbInsert(data);
+      }
     }
 
     let result: SCLABResponseData;
