@@ -11,6 +11,7 @@ import odbc from 'odbc';
 import { App } from '../app';
 import postgres from 'pg';
 import hana from '@sap/hana-client';
+import { BigQuery } from '@google-cloud/bigquery';
 import { createTunnel, ForwardOptions, TunnelOptions, SshOptions } from 'tunnel-ssh';
 import { AddressInfo, Server } from 'net';
 import { Client } from 'ssh2';
@@ -24,7 +25,7 @@ import { SecretManager } from '@/config/SecretManager';
   return parseInt(this.toString(), 10);
 };
 interface DBClient {
-  client: presto.Client | mariadb.Pool | oracledb.Pool | sql.ConnectionPool | odbc.Pool | postgres.Pool | hana.ConnectionPool;
+  client: presto.Client | mariadb.Pool | oracledb.Pool | sql.ConnectionPool | odbc.Pool | postgres.Pool | hana.ConnectionPool | BigQuery;
   type: string;
   tunnel?: TunnelInfo;
   keepAliveTimeoutId?: NodeJS.Timeout;
@@ -309,6 +310,20 @@ export class DBManager {
           break;
         }
 
+        case DB_TYPE.BIGQUERY: {
+          const client = new BigQuery({
+            projectId: db.options.projectId,
+            credentials: db.options.keyFile
+              ? JSON.parse(db.options.keyFile)
+              : undefined,
+          });
+          DBManager.dbMap.set(db.name, {
+            client,
+            type: db.type,
+          });
+          break;
+        }
+
         default: {
           logger.info(`Not implemented database ${db.type}`);
           break;
@@ -380,6 +395,10 @@ export class DBManager {
 
       case DB_TYPE.ODBC: {
         await (dbClient.client as odbc.Pool).close();
+        break;
+      }
+
+      case DB_TYPE.BIGQUERY: {
         break;
       }
     }
@@ -517,21 +536,34 @@ export class DBManager {
             break;
           }
 
-          case DB_TYPE.ODBC: {
-            try {
-              const client = dbClient.client as odbc.Pool;
-              if (client) {
-                resolve(true);
-              } else {
-                throw new Error('ODBC Connection fail');
-              }
-            } catch (e) {
-              console.error(e);
-              logger.info(`Cannot connect to ODBC. Please check your config.`);
-              reject(e);
-            }
-            break;
+      case DB_TYPE.ODBC: {
+        try {
+          const client = dbClient.client as odbc.Pool;
+          if (client) {
+            resolve(true);
+          } else {
+            throw new Error('ODBC Connection fail');
           }
+        } catch (e) {
+          console.error(e);
+          logger.info(`Cannot connect to ODBC. Please check your config.`);
+          reject(e);
+        }
+        break;
+      }
+
+      case DB_TYPE.BIGQUERY: {
+        try {
+          const client = dbClient.client as BigQuery;
+          await client.query('SELECT 1');
+          resolve(true);
+        } catch (e) {
+          console.error(e);
+          logger.info(`Cannot connect to BigQuery. Please check your config.`);
+          reject(e);
+        }
+        break;
+      }
         }
       } catch (e) {
         reject(e);
@@ -789,6 +821,14 @@ export class DBManager {
             resolve(rows);
             break;
           }
+
+          case DB_TYPE.BIGQUERY: {
+            const client = dbClient.client as BigQuery;
+            const [job] = await client.createQueryJob({ query: sql });
+            const [rows] = await job.getQueryResults();
+            resolve(rows as any);
+            break;
+          }
         }
       } catch (e) {
         if (e.message && typeof e.message === 'string' && e.message.includes(CLIENT_NOT_FOUNT_ERROR)) {
@@ -852,28 +892,36 @@ export class DBManager {
 
             break;
           }
-          case DB_TYPE.HANA: {
-            if (db.options.database) {
-              resolve([{ name: db.options.database }]);
-              return;
-            }
-            result = (
-              await DBManager.runSQL(
-                dbName,
-                `
+        case DB_TYPE.HANA: {
+          if (db.options.database) {
+            resolve([{ name: db.options.database }]);
+            return;
+          }
+          result = (
+            await DBManager.runSQL(
+              dbName,
+              `
               SELECT DATABASE_NAME FROM M_DATABASES
               `,
               )
-            ).map((row: { DATABASE_NAME: string }) => {
-              return {
-                name: row.DATABASE_NAME,
-              };
-            });
-            break;
+          ).map((row: { DATABASE_NAME: string }) => {
+            return {
+              name: row.DATABASE_NAME,
+            };
+          });
+          break;
+        }
+        case DB_TYPE.BIGQUERY: {
+          if (db.options.projectId) {
+            result = [{ name: db.options.projectId }];
+          } else {
+            result = [];
           }
-          default: {
-            throw new Error('Retrieving catalogs is only supported in Trino or Presto.');
-          }
+          break;
+        }
+        default: {
+          throw new Error('Retrieving catalogs is only supported in Trino or Presto.');
+        }
         }
 
         resolve(result);
@@ -996,6 +1044,14 @@ export class DBManager {
               status: 'error',
               result: 'ODBC does not support retrieving schemas.',
             };
+            break;
+          }
+
+          case DB_TYPE.BIGQUERY: {
+            const client = dbClient.client as BigQuery;
+            const [datasets] = await client.getDatasets();
+            result = datasets.map(d => ({ name: d.id! }));
+            break;
           }
         }
 
@@ -1117,6 +1173,14 @@ export class DBManager {
               };
             });
             await connection.close();
+            break;
+          }
+
+          case DB_TYPE.BIGQUERY: {
+            const client = dbClient.client as BigQuery;
+            const [tables] = await client.dataset(data.schema).getTables();
+            result = tables.map(t => ({ name: t.id! }));
+            break;
           }
         }
         resolve(result);
@@ -1266,6 +1330,13 @@ export class DBManager {
               },
             );
             await connection.close();
+            break;
+          }
+
+          case DB_TYPE.BIGQUERY: {
+            const client = dbClient.client as BigQuery;
+            const [metadata] = await client.dataset(data.schema).table(data.table).getMetadata();
+            result = metadata.schema.fields.map((f: any) => ({ name: f.name, type: f.type }));
             break;
           }
         }

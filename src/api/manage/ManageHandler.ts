@@ -39,15 +39,17 @@ const dbOptionsSchema = z.object({
   sshUser: z.optional(z.string()),
   sshPassword: z.optional(z.string()),
   sshPrivateKey: z.optional(z.string()),
+  projectId: z.optional(z.string()),
+  keyFile: z.optional(z.string()),
 });
 const dbInsertSchema = z.object({
   name: z.string(),
-  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'postgres', 'hana']),
+  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'postgres', 'hana', 'bigquery']),
   options: dbOptionsSchema,
 });
 const dbUpdateSchema = z.object({
   name: z.string(),
-  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'postgres', 'hana']),
+  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'postgres', 'hana', 'bigquery']),
   oldName: z.string(),
   options: dbOptionsSchema,
 });

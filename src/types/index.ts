@@ -44,6 +44,8 @@ export interface DB {
     sshPassword?: string;
     sshPrivateKey?: string;
     sshPassphrase?: string;
+    projectId?: string;
+    keyFile?: string;
   };
 }
 
