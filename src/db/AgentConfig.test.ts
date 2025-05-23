@@ -102,12 +102,7 @@ describe('AgentConfig History Logging', () => {
     };
     await agentConfig.insertIOT(iot);
     // remove initial history to prevent foreign key constraint on update
-    await new Promise<void>((resolve, reject) => {
-      agentConfig.db.run('DELETE FROM HISTORY WHERE topic = ?', [iot.topic], err => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+    agentConfig.db.prepare('DELETE FROM HISTORY WHERE topic = ?').run(iot.topic);
     const updated: IOT = {
       topic: 'topic2',
       name: 'db2',

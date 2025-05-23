@@ -1,4 +1,4 @@
-import { Database } from 'sqlite3';
+import Database from 'better-sqlite3';
 import type { API, DB, HISTORY, IOT } from '../types';
 
 export class AgentConfig {
@@ -56,18 +56,10 @@ export class AgentConfig {
 
   public db: Database;
   constructor(dbPath: string, callback: (err?: any) => void) {
-    this.db = new Database(dbPath, async () => {
-      try {
-        await this.setupTables();
-        if (callback) {
-          callback();
-        }
-      } catch (e) {
-        if (callback) {
-          callback(e);
-        }
-      }
-    });
+    this.db = new Database(dbPath);
+    this.setupTables()
+      .then(() => callback())
+      .catch(err => callback(err));
   }
 
   async getDBList(): Promise<Array<DB>> {
@@ -234,8 +226,8 @@ export class AgentConfig {
       api.path,
       api.name,
       api.SQL,
-      api.injectionCheck,
-      api.desc,
+      api.injectionCheck ? 1 : 0,
+      api.desc ?? null,
     ]);
 
     await this.insertHistory({
@@ -259,7 +251,7 @@ export class AgentConfig {
       desc = ?
     WHERE path = ?
     `,
-      [api.path, api.name, api.SQL, api.injectionCheck, api.desc, api.oldPath!],
+      [api.path, api.name, api.SQL, api.injectionCheck ? 1 : 0, api.desc ?? null, api.oldPath!],
     );
     await this.insertHistory({
       name: api.name,
@@ -316,66 +308,49 @@ export class AgentConfig {
 
   async run(sql: string, params: any[]): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.run(sql, params, function (err) {
-        if (err) {
-          reject(err);
-          return;
-        }
+      try {
+        this.db.prepare(sql).run(...params);
         resolve();
-      });
+      } catch (err) {
+        reject(err);
+      }
     });
   }
 
   async get<T>(sql: string, params: any[], parser: (obj: any) => T): Promise<T> {
     return new Promise((resolve, reject) => {
-      this.db.get(sql, params, function (err, res) {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        if (!res) {
+      try {
+        const row = this.db.prepare(sql).get(...params);
+        if (!row) {
           reject('Removed Data');
-          return;
+        } else {
+          resolve(parser(row));
         }
-
-        resolve(parser(res));
-      });
+      } catch (err) {
+        reject(err);
+      }
     });
   }
 
   async all<T>(sql: string, params: any[], parser: (obj: any) => T): Promise<T[]> {
     return new Promise((resolve, reject) => {
-      this.db.all(sql, params, function (err, res) {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        if (!res) {
-          reject('Removed Data');
-          return;
-        }
-
-        resolve(
-          res.map((row: any) => {
-            return parser(row);
-          }),
-        );
-      });
+      try {
+        const rows = this.db.prepare(sql).all(...params);
+        resolve(rows.map((row: any) => parser(row)));
+      } catch (err) {
+        reject(err);
+      }
     });
   }
 
   async exec(sql: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.exec(sql, err => {
-        if (err) {
-          reject(err);
-          return;
-        }
-
+      try {
+        this.db.exec(sql);
         resolve();
-      });
+      } catch (err) {
+        reject(err);
+      }
     });
   }
 }
