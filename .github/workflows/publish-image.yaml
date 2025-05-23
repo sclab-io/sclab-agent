@@ -5,6 +5,7 @@ on:
       - main
     paths:
       - 'src/**'
+      - 'package.json'
 
 jobs:
   publish_image:
