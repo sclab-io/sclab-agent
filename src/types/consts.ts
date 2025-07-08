@@ -5,6 +5,7 @@ export const DB_TYPE: {
   ORACLE: string;
   SQL_SERVER: string;
   ODBC: string;
+  ALTIBASE: string;
   HANA: string;
   BIGQUERY: string;
 } = {
@@ -14,6 +15,7 @@ export const DB_TYPE: {
   ORACLE: 'oracle',
   SQL_SERVER: 'sqlserver',
   ODBC: 'odbc',
+  ALTIBASE: 'altibase',
   HANA: 'hana',
   BIGQUERY: 'bigquery',
 };

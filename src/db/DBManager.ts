@@ -296,6 +296,7 @@ export class DBManager {
           break;
         }
 
+        case DB_TYPE.ALTIBASE:
         case DB_TYPE.ODBC: {
           const pool = await odbc.pool({
             connectionString: db.options.host!,
@@ -391,6 +392,7 @@ export class DBManager {
         break;
       }
 
+      case DB_TYPE.ALTIBASE:
       case DB_TYPE.ODBC: {
         await (dbClient.client as odbc.Pool).close();
         break;
@@ -534,6 +536,7 @@ export class DBManager {
             break;
           }
 
+          case DB_TYPE.ALTIBASE:
           case DB_TYPE.ODBC: {
             try {
               const client = dbClient.client as odbc.Pool;
@@ -813,6 +816,7 @@ export class DBManager {
             break;
           }
 
+          case DB_TYPE.ALTIBASE:
           case DB_TYPE.ODBC: {
             const client = dbClient.client as odbc.Pool;
             const rows = await client.query(sql);
@@ -1037,6 +1041,7 @@ export class DBManager {
             break;
           }
 
+          case DB_TYPE.ALTIBASE:
           case DB_TYPE.ODBC: {
             result = {
               status: 'error',
@@ -1162,6 +1167,7 @@ export class DBManager {
             break;
           }
 
+          case DB_TYPE.ALTIBASE:
           case DB_TYPE.ODBC: {
             const db = await App.agentConfig.getDatabase(data.name);
             const connection = await odbc.connect(db.options.host);
@@ -1316,6 +1322,7 @@ export class DBManager {
             break;
           }
 
+          case DB_TYPE.ALTIBASE:
           case DB_TYPE.ODBC: {
             const db = await App.agentConfig.getDatabase(data.name);
             const connection = await odbc.connect(db.options.host);

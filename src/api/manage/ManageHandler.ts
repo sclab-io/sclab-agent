@@ -42,12 +42,12 @@ const dbOptionsSchema = z.object({
 });
 const dbInsertSchema = z.object({
   name: z.string(),
-  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'postgres', 'hana', 'bigquery']),
+  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'altibase', 'postgres', 'hana', 'bigquery']),
   options: dbOptionsSchema,
 });
 const dbUpdateSchema = z.object({
   name: z.string(),
-  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'postgres', 'hana', 'bigquery']),
+  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'altibase', 'postgres', 'hana', 'bigquery']),
   oldName: z.string(),
   options: dbOptionsSchema,
 });
