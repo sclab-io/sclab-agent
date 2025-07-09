@@ -32,17 +32,39 @@ jobs:
       - name: Get latest version
         id: get_version
         run: |
+          # Get the latest tag
           latest_tag=$(git tag --sort=-v:refname | head -n 1)
-          if [[ "$latest_tag" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-            major="${BASH_REMATCH[1]}"
-            minor="${BASH_REMATCH[2]}"
-            patch="${BASH_REMATCH[3]}"
-            new_patch=$((patch + 1))
-            new_tag="${major}.${minor}.${new_patch}"
+          
+          # Get the commit SHA of the latest tag
+          if [ -n "$latest_tag" ]; then
+            tag_commit=$(git rev-list -n 1 "$latest_tag")
           else
-            new_tag="1.0.0"
+            tag_commit=""
           fi
-          echo "version=$new_tag" >> $GITHUB_OUTPUT
+          
+          # Get the current commit SHA
+          current_commit=$(git rev-parse HEAD)
+          
+          # Check if current commit is already tagged
+          if [ "$tag_commit" = "$current_commit" ]; then
+            # Use existing tag version (remove 'v' prefix if exists)
+            existing_version=${latest_tag#v}
+            echo "version=$existing_version" >> $GITHUB_OUTPUT
+            echo "use_existing=true" >> $GITHUB_OUTPUT
+          else
+            # Create new version
+            if [[ "$latest_tag" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+              major="${BASH_REMATCH[1]}"
+              minor="${BASH_REMATCH[2]}"
+              patch="${BASH_REMATCH[3]}"
+              new_patch=$((patch + 1))
+              new_tag="${major}.${minor}.${new_patch}"
+            else
+              new_tag="1.0.0"
+            fi
+            echo "version=$new_tag" >> $GITHUB_OUTPUT
+            echo "use_existing=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build Docker image
         run: |
@@ -58,6 +80,7 @@ jobs:
           docker push sclabio/sclab-agent:${{ steps.get_version.outputs.version }}
 
       - name: Create git tag
+        if: steps.get_version.outputs.use_existing != 'true'
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
