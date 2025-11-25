@@ -132,10 +132,10 @@ npx pm2 set pm2-logrotate:compress true
 npx pm2 set pm2-logrotate:retain 31
 
 # Generate Startup Script
-pm2 startup
+npx pm2 startup
 
 # Freeze your process list across server restart
-pm2 save
+npx pm2 save
 
 # pm2 log
 npx pm2 log
