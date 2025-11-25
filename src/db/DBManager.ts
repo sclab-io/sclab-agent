@@ -1167,22 +1167,11 @@ export class DBManager {
             break;
           }
 
-          case DB_TYPE.ALTIBASE: {
-            const db = await App.agentConfig.getDatabase(data.name);
-            const connection = await odbc.connect(db.options.host);
-            result = (await connection.tables(data.catalog || null, data.schema || null, null, 'TABLE,VIEW')).map((row: { TABLE_NAME: string }) => {
-              return {
-                name: row.TABLE_NAME,
-              };
-            });
-            await connection.close();
-            break;
-          }
-
+          case DB_TYPE.ALTIBASE:
           case DB_TYPE.ODBC: {
             const db = await App.agentConfig.getDatabase(data.name);
             const connection = await odbc.connect(db.options.host);
-            result = (await connection.tables(data.catalog || null, data.schema || null, null, null)).map((row: { TABLE_NAME: string }) => {
+            result = (await connection.tables(data.catalog || null, data.schema || null, null, 'TABLE,VIEW')).map((row: { TABLE_NAME: string }) => {
               return {
                 name: row.TABLE_NAME,
               };
