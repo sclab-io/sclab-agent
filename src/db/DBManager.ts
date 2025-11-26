@@ -849,6 +849,13 @@ export class DBManager {
             return;
           }
         }
+
+        if(e.odbcErrors && e.odbcErrors.length > 0){
+          const error = e.odbcErrors[0];
+          reject(error);
+          return;
+        }
+
         reject(e);
       }
     });
