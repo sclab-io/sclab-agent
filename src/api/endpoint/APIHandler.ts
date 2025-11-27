@@ -10,7 +10,7 @@ import MybatisMapper from 'mybatis-mapper';
 export class APIHandler extends CommonHandler {
   static async handle(req: Request): Promise<SCLABResponseData> {
     try {
-      const path = req.path.split('?')[0];
+      const path = req.path;
       const api = await App.agentConfig.getAPI(path);
       const valueObj: any = {};
       const paramKeys = Object.keys(req.query);
