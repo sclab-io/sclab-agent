@@ -95,9 +95,15 @@ export class App {
         this.error(res, e);
       }
     });
+
     this.listen();
 
-    await this.initDB();
+    try {
+      await this.initDB();
+    } catch (e) {
+      logger.error(e);
+    }
+
     try {
       await this.initAPI();
     } catch (e) {
@@ -120,16 +126,14 @@ export class App {
             libDir: ORACLE_CLIENT_DIR,
           });
         } catch (e) {
-          console.log(e);
-          reject(e);
+          logger.error(e);
         }
       } else if (LD_LIBRARY_PATH) {
         logger.info('LD_LIBRARY_PATH : ' + LD_LIBRARY_PATH);
         try {
           oracledb.initOracleClient();
         } catch (e) {
-          console.log(e);
-          reject(e);
+          logger.error(e);
         }
       }
 
@@ -143,7 +147,7 @@ export class App {
             reject(e);
           }
         }
-
+        
         resolve();
       });
     });
@@ -161,12 +165,16 @@ export class App {
   }
 
   public async initAPI() {
+    logger.debug(`initAPI called. USE_MYBATIS: ${USE_MYBATIS}`);
     if (USE_MYBATIS !== '1') {
+      logger.debug('USE_MYBATIS is not 1, skipping initAPI');
       return;
     }
     const apiList = await App.agentConfig.getAPIListAll();
+    logger.debug(`Found ${apiList.length} APIs to register.`);
     for (let i = 0, len = apiList.length; i < len; i++) {
       try {
+        logger.debug(`Registering API: ${apiList[i].path}`);
         App.registerAPI(apiList[i]);
       } catch (e) {
         logger.error(e);
@@ -183,7 +191,7 @@ export class App {
       logger.info(`authorization: ${token}`);
       this.app.use(jwtMiddleware);
     } catch (e) {
-      console.error(e);
+      logger.error(e);
     }
   }
 
