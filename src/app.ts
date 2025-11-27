@@ -147,7 +147,7 @@ export class App {
             reject(e);
           }
         }
-        
+
         resolve();
       });
     });
