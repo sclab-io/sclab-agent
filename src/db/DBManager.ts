@@ -36,7 +36,7 @@ interface DBClient {
     | postgres.Pool
     | hana.ConnectionPool
     | BigQuery
-    | snowflake.Connection
+    | snowflake.Pool<snowflake.Connection>
     | DBSQLClient;
   type: string;
   tunnel?: TunnelInfo;
@@ -324,9 +324,9 @@ export class DBManager {
         }
 
         case DB_TYPE.SNOWFLAKE: {
-          const connection = await DBManager.connectSnowflake(db);
+          const pool = await DBManager.connectSnowflake(db);
           DBManager.dbMap.set(db.name, {
-            client: connection,
+            client: pool,
             type: db.type,
           });
           break;
@@ -438,9 +438,11 @@ export class DBManager {
       }
 
       case DB_TYPE.SNOWFLAKE: {
-        const client = dbClient.client as snowflake.Connection;
-        if (typeof (client as any).destroy === 'function') {
-          await (client as any).destroy();
+        const pool = dbClient.client as snowflake.Pool<snowflake.Connection>;
+        try {
+          await pool.drain();
+        } finally {
+          await pool.clear();
         }
         break;
       }
@@ -610,7 +612,7 @@ export class DBManager {
 
           case DB_TYPE.SNOWFLAKE: {
             try {
-              await DBManager.runSnowflakeQuery(dbClient.client as snowflake.Connection, 'SELECT 1');
+              await DBManager.runSnowflakeQuery(dbClient.client as snowflake.Pool<snowflake.Connection>, 'SELECT 1');
               resolve(true);
             } catch (e) {
               console.error(e);
@@ -904,8 +906,8 @@ export class DBManager {
           }
 
           case DB_TYPE.SNOWFLAKE: {
-            const client = dbClient.client as snowflake.Connection;
-            const rows = await DBManager.runSnowflakeQuery(client, sql);
+            const pool = dbClient.client as snowflake.Pool<snowflake.Connection>;
+            const rows = await DBManager.runSnowflakeQuery(pool, sql);
             resolve(rows);
             break;
           }
@@ -1559,38 +1561,51 @@ export class DBManager {
     });
   }
 
-  static connectSnowflake(db: DB): Promise<snowflake.Connection> {
-    return new Promise((resolve, reject) => {
-      const connection = snowflake.createConnection({
-        account: db.options.account || db.options.host,
-        username: db.options.user,
-        password: db.options.password,
-        warehouse: db.options.warehouse,
-        database: db.options.database,
-        schema: db.options.schema,
-        role: db.options.role,
-      });
-      connection.connect(err => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve(connection);
-      });
-    });
+  static async connectSnowflake(db: DB): Promise<snowflake.Pool<snowflake.Connection>> {
+    const connectionOptions = {
+      account: db.options.host,
+      username: db.options.user,
+      password: db.options.password,
+      warehouse: db.options.warehouse,
+      database: db.options.database,
+      schema: db.options.schema,
+      role: db.options.role,
+    };
+    const poolOptions: snowflake.PoolOptions = {};
+    if (db.options.maxPool) {
+      poolOptions.max = db.options.maxPool;
+    }
+    if (db.options.minPoll) {
+      poolOptions.min = db.options.minPoll;
+    }
+    if (poolOptions.acquireTimeoutMillis === undefined) {
+      poolOptions.acquireTimeoutMillis = 30000;
+    }
+    const pool = snowflake.createPool(connectionOptions, Object.keys(poolOptions).length ? poolOptions : undefined);
+    try {
+      const connection = await pool.acquire();
+      await pool.release(connection);
+      return pool;
+    } catch (err) {
+      await pool.drain();
+      await pool.clear();
+      throw err;
+    }
   }
 
-  static runSnowflakeQuery(connection: snowflake.Connection, sql: string): Promise<any[]> {
-    return new Promise((resolve, reject) => {
-      connection.execute({
-        sqlText: sql,
-        complete: (err, _stmt, rows) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-          resolve(rows || []);
-        },
+  static runSnowflakeQuery(pool: snowflake.Pool<snowflake.Connection>, sql: string): Promise<any[]> {
+    return pool.use(connection => {
+      return new Promise((resolve, reject) => {
+        connection.execute({
+          sqlText: sql,
+          complete: (err, _stmt, rows) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            resolve(rows || []);
+          },
+        });
       });
     });
   }

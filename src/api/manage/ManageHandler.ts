@@ -39,7 +39,6 @@ const dbOptionsSchema = z.object({
   sshUser: z.optional(z.string()),
   sshPassword: z.optional(z.string()),
   sshPrivateKey: z.optional(z.string()),
-  account: z.optional(z.string()), // snowflake
   warehouse: z.optional(z.string()), // snowflake
   role: z.optional(z.string()), // snowflake
   token: z.optional(z.string()), // databricks
