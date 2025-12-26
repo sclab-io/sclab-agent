@@ -2,7 +2,7 @@
   "compileOnSave": false,
   "compilerOptions": {
     "target": "es2017",
-    "lib": ["es2017", "esnext.asynciterable"],
+    "lib": ["es2017", "es2022", "esnext.asynciterable"],
     "typeRoots": ["node_modules/@types"],
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
@@ -10,6 +10,7 @@
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
     "module": "commonjs",
+    "ignoreDeprecations": "6.0",
     "pretty": true,
     "sourceMap": true,
     "declaration": true,

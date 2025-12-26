@@ -8,6 +8,8 @@ export const DB_TYPE: {
   ALTIBASE: string;
   HANA: string;
   BIGQUERY: string;
+  SNOWFLAKE: string;
+  DATABRICKS: string;
 } = {
   TRINO: 'trino',
   MYSQL: 'mysql',
@@ -18,4 +20,6 @@ export const DB_TYPE: {
   ALTIBASE: 'altibase',
   HANA: 'hana',
   BIGQUERY: 'bigquery',
+  SNOWFLAKE: 'snowflake',
+  DATABRICKS: 'databricks',
 };

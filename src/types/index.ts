@@ -46,6 +46,11 @@ export interface DB {
     sshPassphrase?: string;
     projectId?: string;
     keyFile?: string;
+    account?: string; // snowflake
+    warehouse?: string; // snowflake
+    role?: string; // snowflake
+    token?: string; // databricks
+    httpPath?: string; // databricks
   };
 }
 

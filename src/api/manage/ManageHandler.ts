@@ -39,15 +39,20 @@ const dbOptionsSchema = z.object({
   sshUser: z.optional(z.string()),
   sshPassword: z.optional(z.string()),
   sshPrivateKey: z.optional(z.string()),
+  account: z.optional(z.string()), // snowflake
+  warehouse: z.optional(z.string()), // snowflake
+  role: z.optional(z.string()), // snowflake
+  token: z.optional(z.string()), // databricks
+  httpPath: z.optional(z.string()), // databricks
 });
 const dbInsertSchema = z.object({
   name: z.string(),
-  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'altibase', 'postgres', 'hana', 'bigquery']),
+  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'altibase', 'postgres', 'hana', 'bigquery', 'snowflake', 'databricks']),
   options: dbOptionsSchema,
 });
 const dbUpdateSchema = z.object({
   name: z.string(),
-  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'altibase', 'postgres', 'hana', 'bigquery']),
+  type: z.enum(['trino', 'mysql', 'oracle', 'sqlserver', 'odbc', 'altibase', 'postgres', 'hana', 'bigquery', 'snowflake', 'databricks']),
   oldName: z.string(),
   options: dbOptionsSchema,
 });

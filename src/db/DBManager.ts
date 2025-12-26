@@ -12,6 +12,8 @@ import { App } from '../app';
 import postgres from 'pg';
 import hana from '@sap/hana-client';
 import { BigQuery } from '@google-cloud/bigquery';
+import snowflake from 'snowflake-sdk';
+import { DBSQLClient } from '@databricks/sql';
 import { createTunnel, ForwardOptions, TunnelOptions, SshOptions } from 'tunnel-ssh';
 import { AddressInfo, Server } from 'net';
 import { Client } from 'ssh2';
@@ -25,7 +27,17 @@ import { SecretManager } from '@/config/SecretManager';
   return parseInt(this.toString(), 10);
 };
 interface DBClient {
-  client: presto.Client | mariadb.Pool | oracledb.Pool | sql.ConnectionPool | odbc.Pool | postgres.Pool | hana.ConnectionPool | BigQuery;
+  client:
+    | presto.Client
+    | mariadb.Pool
+    | oracledb.Pool
+    | sql.ConnectionPool
+    | odbc.Pool
+    | postgres.Pool
+    | hana.ConnectionPool
+    | BigQuery
+    | snowflake.Connection
+    | DBSQLClient;
   type: string;
   tunnel?: TunnelInfo;
   keepAliveTimeoutId?: NodeJS.Timeout;
@@ -311,6 +323,33 @@ export class DBManager {
           break;
         }
 
+        case DB_TYPE.SNOWFLAKE: {
+          const connection = await DBManager.connectSnowflake(db);
+          DBManager.dbMap.set(db.name, {
+            client: connection,
+            type: db.type,
+          });
+          break;
+        }
+
+        case DB_TYPE.DATABRICKS: {
+          const client = new DBSQLClient();
+          const connectionOptions = {
+            host: db.options.host,
+            path: db.options.httpPath,
+            token: db.options.token,
+            serverHostname: db.options.host,
+            httpPath: db.options.httpPath,
+            accessToken: db.options.token,
+          };
+          await (client as any).connect(connectionOptions);
+          DBManager.dbMap.set(db.name, {
+            client,
+            type: db.type,
+          });
+          break;
+        }
+
         case DB_TYPE.BIGQUERY: {
           const client = new BigQuery({
             projectId: db.options.host,
@@ -395,6 +434,22 @@ export class DBManager {
       case DB_TYPE.ALTIBASE:
       case DB_TYPE.ODBC: {
         await (dbClient.client as odbc.Pool).close();
+        break;
+      }
+
+      case DB_TYPE.SNOWFLAKE: {
+        const client = dbClient.client as snowflake.Connection;
+        if (typeof (client as any).destroy === 'function') {
+          await (client as any).destroy();
+        }
+        break;
+      }
+
+      case DB_TYPE.DATABRICKS: {
+        const client = dbClient.client as DBSQLClient;
+        if (typeof (client as any).close === 'function') {
+          await (client as any).close();
+        }
         break;
       }
 
@@ -548,6 +603,30 @@ export class DBManager {
             } catch (e) {
               console.error(e);
               logger.info(`Cannot connect to ODBC. Please check your config.`);
+              reject(e);
+            }
+            break;
+          }
+
+          case DB_TYPE.SNOWFLAKE: {
+            try {
+              await DBManager.runSnowflakeQuery(dbClient.client as snowflake.Connection, 'SELECT 1');
+              resolve(true);
+            } catch (e) {
+              console.error(e);
+              logger.info(`Cannot connect to Snowflake. Please check your config.`);
+              reject(e);
+            }
+            break;
+          }
+
+          case DB_TYPE.DATABRICKS: {
+            try {
+              await DBManager.runDatabricksQuery(dbClient.client as DBSQLClient, 'SELECT 1');
+              resolve(true);
+            } catch (e) {
+              console.error(e);
+              logger.info(`Cannot connect to Databricks. Please check your config.`);
               reject(e);
             }
             break;
@@ -824,6 +903,20 @@ export class DBManager {
             break;
           }
 
+          case DB_TYPE.SNOWFLAKE: {
+            const client = dbClient.client as snowflake.Connection;
+            const rows = await DBManager.runSnowflakeQuery(client, sql);
+            resolve(rows);
+            break;
+          }
+
+          case DB_TYPE.DATABRICKS: {
+            const client = dbClient.client as DBSQLClient;
+            const rows = await DBManager.runDatabricksQuery(client, sql);
+            resolve(rows);
+            break;
+          }
+
           case DB_TYPE.BIGQUERY: {
             const client = dbClient.client as BigQuery;
             const [job] = await client.createQueryJob({ query: sql });
@@ -928,8 +1021,28 @@ export class DBManager {
             }
             break;
           }
+          case DB_TYPE.SNOWFLAKE: {
+            if (db.options.database) {
+              result = [{ name: db.options.database }];
+            } else {
+              result = (await DBManager.runSQL(dbName, 'SHOW DATABASES')).map((row: any) => ({
+                name: DBManager.getRowValue(row, ['name', 'database_name']),
+              }));
+            }
+            break;
+          }
+          case DB_TYPE.DATABRICKS: {
+            if (db.options.catalog) {
+              result = [{ name: db.options.catalog }];
+            } else {
+              result = (await DBManager.runSQL(dbName, 'SHOW CATALOGS')).map((row: any) => ({
+                name: DBManager.getRowValue(row, ['catalog', 'catalog_name', 'name']),
+              }));
+            }
+            break;
+          }
           default: {
-            throw new Error('Retrieving catalogs is only supported in Trino or Presto.');
+            throw new Error('Retrieving catalogs is not supported for this database type.');
           }
         }
 
@@ -1054,6 +1167,34 @@ export class DBManager {
               status: 'error',
               result: 'ODBC does not support retrieving schemas.',
             };
+            break;
+          }
+
+          case DB_TYPE.SNOWFLAKE: {
+            const databaseName = data.catalog || db.options.database;
+            if (databaseName) {
+              result = (await DBManager.runSQL(data.name, `SHOW SCHEMAS IN DATABASE ${databaseName}`)).map((row: any) => ({
+                name: DBManager.getRowValue(row, ['name', 'schema_name']),
+              }));
+            } else {
+              result = (await DBManager.runSQL(data.name, 'SHOW SCHEMAS')).map((row: any) => ({
+                name: DBManager.getRowValue(row, ['name', 'schema_name']),
+              }));
+            }
+            break;
+          }
+
+          case DB_TYPE.DATABRICKS: {
+            const catalogName = data.catalog || db.options.catalog;
+            if (catalogName) {
+              result = (await DBManager.runSQL(data.name, `SHOW SCHEMAS IN ${catalogName}`)).map((row: any) => ({
+                name: DBManager.getRowValue(row, ['databaseName', 'schema_name', 'name']),
+              }));
+            } else {
+              result = (await DBManager.runSQL(data.name, 'SHOW SCHEMAS')).map((row: any) => ({
+                name: DBManager.getRowValue(row, ['databaseName', 'schema_name', 'name']),
+              }));
+            }
             break;
           }
 
@@ -1184,6 +1325,26 @@ export class DBManager {
               };
             });
             await connection.close();
+            break;
+          }
+
+          case DB_TYPE.SNOWFLAKE: {
+            const db = await App.agentConfig.getDatabase(data.name);
+            const databaseName = data.catalog || db.options.database;
+            const schemaRef = databaseName ? `${databaseName}.${data.schema}` : data.schema;
+            result = (await DBManager.runSQL(data.name, `SHOW TABLES IN SCHEMA ${schemaRef}`)).map((row: any) => ({
+              name: DBManager.getRowValue(row, ['name', 'table_name']),
+            }));
+            break;
+          }
+
+          case DB_TYPE.DATABRICKS: {
+            const db = await App.agentConfig.getDatabase(data.name);
+            const catalogName = data.catalog || db.options.catalog;
+            const schemaRef = catalogName ? `${catalogName}.${data.schema}` : data.schema;
+            result = (await DBManager.runSQL(data.name, `SHOW TABLES IN ${schemaRef}`)).map((row: any) => ({
+              name: DBManager.getRowValue(row, ['tableName', 'name', 'table_name']),
+            }));
             break;
           }
 
@@ -1345,6 +1506,28 @@ export class DBManager {
             break;
           }
 
+          case DB_TYPE.SNOWFLAKE: {
+            const db = await App.agentConfig.getDatabase(data.name);
+            const databaseName = data.catalog || db.options.database;
+            const tableRef = databaseName ? `${databaseName}.${data.schema}.${data.table}` : `${data.schema}.${data.table}`;
+            result = (await DBManager.runSQL(data.name, `DESC TABLE ${tableRef}`)).map((row: any) => ({
+              name: DBManager.getRowValue(row, ['name', 'column_name', 'col_name']),
+              type: DBManager.getRowValue(row, ['type', 'data_type']),
+            }));
+            break;
+          }
+
+          case DB_TYPE.DATABRICKS: {
+            const db = await App.agentConfig.getDatabase(data.name);
+            const catalogName = data.catalog || db.options.catalog;
+            const tableRef = catalogName ? `${catalogName}.${data.schema}.${data.table}` : `${data.schema}.${data.table}`;
+            result = (await DBManager.runSQL(data.name, `DESCRIBE TABLE ${tableRef}`)).map((row: any) => ({
+              name: DBManager.getRowValue(row, ['col_name', 'column_name', 'name']),
+              type: DBManager.getRowValue(row, ['data_type', 'type']),
+            }));
+            break;
+          }
+
           case DB_TYPE.BIGQUERY: {
             const client = dbClient.client as BigQuery;
             const [metadata] = await client.dataset(data.schema).table(data.table).getMetadata();
@@ -1374,5 +1557,70 @@ export class DBManager {
         reject(e);
       }
     });
+  }
+
+  static connectSnowflake(db: DB): Promise<snowflake.Connection> {
+    return new Promise((resolve, reject) => {
+      const connection = snowflake.createConnection({
+        account: db.options.account || db.options.host,
+        username: db.options.user,
+        password: db.options.password,
+        warehouse: db.options.warehouse,
+        database: db.options.database,
+        schema: db.options.schema,
+        role: db.options.role,
+      });
+      connection.connect(err => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(connection);
+      });
+    });
+  }
+
+  static runSnowflakeQuery(connection: snowflake.Connection, sql: string): Promise<any[]> {
+    return new Promise((resolve, reject) => {
+      connection.execute({
+        sqlText: sql,
+        complete: (err, _stmt, rows) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          resolve(rows || []);
+        },
+      });
+    });
+  }
+
+  static async runDatabricksQuery(client: DBSQLClient, sql: string): Promise<any[]> {
+    const session = await (client as any).openSession();
+    try {
+      const operation = await (session as any).executeStatement(sql);
+      const rows = await (operation as any).fetchAll();
+      await (operation as any).close();
+      return rows || [];
+    } finally {
+      if (session && typeof (session as any).close === 'function') {
+        await (session as any).close();
+      }
+    }
+  }
+
+  static getRowValue(row: any, keys: string[]): any {
+    for (const key of keys) {
+      if (row && row[key] !== undefined) {
+        return row[key];
+      }
+      if (row) {
+        const matchedKey = Object.keys(row).find(k => k.toLowerCase() === key.toLowerCase());
+        if (matchedKey) {
+          return row[matchedKey];
+        }
+      }
+    }
+    return undefined;
   }
 }
