@@ -338,9 +338,6 @@ export class DBManager {
             host: db.options.host,
             path: db.options.httpPath,
             token: db.options.token,
-            serverHostname: db.options.host,
-            httpPath: db.options.httpPath,
-            accessToken: db.options.token,
           };
           await (client as any).connect(connectionOptions);
           DBManager.dbMap.set(db.name, {
