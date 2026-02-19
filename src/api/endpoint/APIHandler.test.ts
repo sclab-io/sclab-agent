@@ -49,4 +49,29 @@ describe('APIHandler', () => {
     // expect the stubbed runSQL to produce the result
     expect(res).toEqual({ status: 'ok', result: [{ id: 1 }] });
   });
+
+  test('handles missing query parameters by setting defaults to empty string', async () => {
+    // mock getAPI with SQL containing a variable
+    (App.agentConfig.getAPI as jest.Mock).mockResolvedValue({
+      path: '/missing',
+      SQL: "SELECT * FROM users WHERE name = '${name}'",
+      injectionCheck: false,
+      name: 'test-missing',
+      desc: '',
+    });
+
+    const runSQLSpy = jest.spyOn(DBManager, 'runSQL').mockResolvedValue([]);
+
+    // Request with NO query parameters
+    const req = { path: '/missing', query: {}, headers: {} } as any;
+
+    const res = await APIHandler.handle(req);
+
+    expect(res.status).toBe('ok');
+
+    // Verify runSQL was called with empty string for ${name}
+    // Expected SQL: "SELECT * FROM users WHERE name = ''"
+    // Note: The limit logic adds limit, so we check the SQL passed
+    expect(runSQLSpy).toHaveBeenCalledWith('test-missing', expect.stringContaining("name = ''"), expect.any(Number));
+  });
 });

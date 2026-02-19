@@ -3,7 +3,7 @@ import { App } from '../../app';
 import { USE_MYBATIS } from '../../config';
 import { DBManager } from '../../db/DBManager';
 import type { SCLABResponseData } from '../../types';
-import { hasSql, replaceString } from '../../util/util';
+import { hasSql, replaceString, getPlaceHolders } from '../../util/util';
 import { CommonHandler } from '../CommonHandler';
 import MybatisMapper from 'mybatis-mapper';
 
@@ -13,6 +13,12 @@ export class APIHandler extends CommonHandler {
       const path = req.path;
       const api = await App.agentConfig.getAPI(path);
       const valueObj: any = {};
+
+      const placeHolders = getPlaceHolders(api.SQL);
+      for (const key of placeHolders) {
+        valueObj[key] = '';
+      }
+
       const paramKeys = Object.keys(req.query);
       const keys: string[] = [];
       for (const key of paramKeys) {
