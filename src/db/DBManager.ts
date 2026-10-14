@@ -51,6 +51,7 @@ interface TunnelInfo {
 
 const CLIENT_NOT_FOUNT_ERROR = 'client does not exists in DBManager.dbMap';
 const TUNNEL_LOCAL_HOST = '127.0.0.1';
+const DEFAULT_SSH_PORT = 22;
 
 // tunnel-ssh listens on '::' when no port is given, and connecting to '::' fails (EADDRNOTAVAIL)
 // where IPv6 is disabled (e.g. docker). Reserve a loopback port so the tunnel binds to 127.0.0.1 only.
@@ -70,12 +71,17 @@ export class DBManager {
   static addDBStack: Map<string, { resolve: Function; reject: Function }[]> = new Map();
   static dbMap: Map<string, DBClient> = new Map();
 
+  // SSH Host/User 만 있으면 터널 사용 (SSH Port 미입력 시 기본 22)
+  static useTunnel(db: DB): boolean {
+    return !!(db.options.sshHost && db.options.sshUser);
+  }
+
   static async createTunnel(db: DB): Promise<TunnelInfo> {
     const { sshHost, sshPort, sshUser, sshPassword, host, port, sshPrivateKey } = db.options;
     const tunnelOptions: TunnelOptions = { autoClose: false, reconnectOnError: false };
     const sshOptions: SshOptions = {
       host: sshHost,
-      port: sshPort || 22,
+      port: sshPort || DEFAULT_SSH_PORT,
       username: sshUser,
       password: sshPassword,
     };
@@ -160,7 +166,7 @@ export class DBManager {
     try {
       switch (db.type) {
         case DB_TYPE.TRINO: {
-          if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
+          if (DBManager.useTunnel(db)) {
             tunnel = await DBManager.createTunnel(db);
           }
           const prestoOptions: ClientOptions = {
@@ -192,7 +198,7 @@ export class DBManager {
         }
 
         case DB_TYPE.MYSQL: {
-          if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
+          if (DBManager.useTunnel(db)) {
             tunnel = await DBManager.createTunnel(db);
           }
           const DBPool = mariadb.createPool({
@@ -221,7 +227,7 @@ export class DBManager {
         }
 
         case DB_TYPE.HANA: {
-          if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
+          if (DBManager.useTunnel(db)) {
             tunnel = await DBManager.createTunnel(db);
           }
           const DBPool = hana.createPool(
@@ -243,7 +249,7 @@ export class DBManager {
         }
 
         case DB_TYPE.POSTGRES: {
-          if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
+          if (DBManager.useTunnel(db)) {
             tunnel = await DBManager.createTunnel(db);
           }
           const postgresSQL = new postgres.Pool({
@@ -270,7 +276,7 @@ export class DBManager {
         }
 
         case DB_TYPE.ORACLE: {
-          if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
+          if (DBManager.useTunnel(db)) {
             tunnel = await DBManager.createTunnel(db);
           }
           await oracledb.createPool({
@@ -294,7 +300,7 @@ export class DBManager {
         }
 
         case DB_TYPE.SQL_SERVER: {
-          if (db.options.sshHost && db.options.sshPort && db.options.sshUser) {
+          if (DBManager.useTunnel(db)) {
             tunnel = await DBManager.createTunnel(db);
           }
           const pool = await new sql.ConnectionPool({
