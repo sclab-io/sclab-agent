@@ -15,7 +15,7 @@ import { BigQuery } from '@google-cloud/bigquery';
 import snowflake from 'snowflake-sdk';
 import { DBSQLClient } from '@databricks/sql';
 import { createTunnel, ForwardOptions, TunnelOptions, SshOptions } from 'tunnel-ssh';
-import { AddressInfo, Server } from 'net';
+import { AddressInfo, createServer, Server } from 'net';
 import { Client } from 'ssh2';
 import { SecretManager } from '@/config/SecretManager';
 
@@ -50,6 +50,21 @@ interface TunnelInfo {
 }
 
 const CLIENT_NOT_FOUNT_ERROR = 'client does not exists in DBManager.dbMap';
+const TUNNEL_LOCAL_HOST = '127.0.0.1';
+
+// tunnel-ssh listens on '::' when no port is given, and connecting to '::' fails (EADDRNOTAVAIL)
+// where IPv6 is disabled (e.g. docker). Reserve a loopback port so the tunnel binds to 127.0.0.1 only.
+function getFreeLocalPort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.unref();
+    server.on('error', reject);
+    server.listen(0, TUNNEL_LOCAL_HOST, () => {
+      const { port } = server.address() as AddressInfo;
+      server.close(() => resolve(port));
+    });
+  });
+}
 
 export class DBManager {
   static addDBStack: Map<string, { resolve: Function; reject: Function }[]> = new Map();
@@ -78,7 +93,8 @@ export class DBManager {
       dstAddr: host,
       dstPort: port,
     };
-    const [server, client] = await createTunnel(tunnelOptions, null, sshOptions, forwardOptions);
+    const serverOptions = { host: TUNNEL_LOCAL_HOST, port: await getFreeLocalPort() };
+    const [server, client] = await createTunnel(tunnelOptions, serverOptions, sshOptions, forwardOptions);
     server.on('error', async (err: any) => {
       logger.error('tunnel server : ' + JSON.stringify(err));
       DBManager.removeDB(db.name);
