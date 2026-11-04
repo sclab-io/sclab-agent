@@ -6,7 +6,7 @@ import { logger } from '../util/logger';
 import mariadb from 'mariadb';
 import oracledb from 'oracledb';
 import sql from 'mssql';
-import { MSSQL_IDLE_TIMEOUT_MS, TUNNEL_KEEP_ALIVE_INTERVAL_MS, USE_SQL_ENV, USE_AWS_SECRET_MANAGER } from '../config';
+import { MSSQL_IDLE_TIMEOUT_MS, TUNNEL_KEEP_ALIVE_INTERVAL_MS, USE_SQL_ENV, USE_AWS_SECRET_MANAGER, MAX_RESULT_ROWS } from '../config';
 import odbc from 'odbc';
 import { App } from '../app';
 import postgres from 'pg';
@@ -52,6 +52,7 @@ interface TunnelInfo {
 const CLIENT_NOT_FOUNT_ERROR = 'client does not exists in DBManager.dbMap';
 const TUNNEL_LOCAL_HOST = '127.0.0.1';
 const DEFAULT_SSH_PORT = 22;
+const DEFAULT_MAX_RESULT_ROWS = 100000;
 
 // tunnel-ssh listens on '::' when no port is given, and connecting to '::' fails (EADDRNOTAVAIL)
 // where IPv6 is disabled (e.g. docker). Reserve a loopback port so the tunnel binds to 127.0.0.1 only.
@@ -738,7 +739,30 @@ export class DBManager {
     return parts.join("'");
   }
 
-  static runSQL(name: string, sql: string, limit: number = 0, retry: number = 1): Promise<any> {
+  /**
+   * 결과 행 수 상한(MAX_RESULT_ROWS, 기본 100000, 0이면 비활성)을 초과하는 배열 결과를 거부한다.
+   * limit 이 없는 쿼리가 대용량 결과를 만들어 서버가 멈추는 것을 막기 위한 안전장치.
+   */
+  static getMaxResultRows(): number {
+    const parsed = parseInt(MAX_RESULT_ROWS ?? '', 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_MAX_RESULT_ROWS;
+  }
+
+  static assertResultSize(result: any, limit: number): void {
+    const max = DBManager.getMaxResultRows();
+    if (limit > 0 || max === 0 || !Array.isArray(result)) return;
+    if (result.length > max) {
+      throw new Error(`Result set too large: ${result.length} rows exceeds MAX_RESULT_ROWS (${max}). Add a LIMIT clause or raise MAX_RESULT_ROWS.`);
+    }
+  }
+
+  static async runSQL(name: string, sql: string, limit: number = 0, retry: number = 1): Promise<any> {
+    const result = await DBManager.executeSQL(name, sql, limit, retry);
+    DBManager.assertResultSize(result, limit);
+    return result;
+  }
+
+  private static executeSQL(name: string, sql: string, limit: number = 0, retry: number = 1): Promise<any> {
     return new Promise(async (resolve, reject) => {
       try {
         logger.debug(`DB NAME : ${name}`);

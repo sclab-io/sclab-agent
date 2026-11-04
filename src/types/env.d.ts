@@ -14,5 +14,6 @@ declare module 'bun' {
     ORACLE_CLIENT_DIR: string;
     LD_LIBRARY_PATH: string;
     MSSQL_IDLE_TIMEOUT_MS: string;
+    MAX_RESULT_ROWS: string;
   }
 }

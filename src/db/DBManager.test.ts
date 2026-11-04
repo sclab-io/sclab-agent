@@ -38,4 +38,30 @@ describe('DBManager', () => {
       expect(DBManager.ensureLimitClause('SELECT TOP 2 * FROM t', 5, 'sqlserver')).toBe('SELECT TOP 2 * FROM t');
     });
   });
+
+  describe('result size guard', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    test('rejects unlimited results over MAX_RESULT_ROWS', () => {
+      jest.spyOn(DBManager, 'getMaxResultRows').mockReturnValue(3);
+      expect(() => DBManager.assertResultSize([1, 2, 3, 4], 0)).toThrow('Result set too large');
+    });
+
+    test('allows results within the cap, limited queries, non-arrays and disabled cap', () => {
+      const spy = jest.spyOn(DBManager, 'getMaxResultRows').mockReturnValue(3);
+      expect(() => DBManager.assertResultSize([1, 2, 3], 0)).not.toThrow();
+      expect(() => DBManager.assertResultSize([1, 2, 3, 4], 10)).not.toThrow();
+      expect(() => DBManager.assertResultSize({ affectedRows: 9 }, 0)).not.toThrow();
+      spy.mockReturnValue(0);
+      expect(() => DBManager.assertResultSize(new Array(10), 0)).not.toThrow();
+    });
+
+    test('runSQL applies the guard to executed results', async () => {
+      jest.spyOn(DBManager, 'getMaxResultRows').mockReturnValue(2);
+      jest.spyOn(DBManager as any, 'executeSQL').mockResolvedValue([1, 2, 3]);
+      await expect(DBManager.runSQL('x', 'SHOW TABLES')).rejects.toThrow('Result set too large');
+    });
+  });
 });
