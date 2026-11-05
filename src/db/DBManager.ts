@@ -683,6 +683,15 @@ export class DBManager {
   }
 
   static ensureLimitClause(sql: string, limit: number = 10, dbType?: string): string {
+    if (dbType === DB_TYPE.ORACLE) {
+      // Oracle 은 LIMIT 대신 FETCH FIRST n ROWS ONLY (12c+) 를 사용한다. 세미콜론도 허용하지 않는다.
+      const trimmed = sql.trim().replace(/;+$/, '').trimEnd();
+      if (/\bFETCH\s+(FIRST|NEXT)\b/i.test(trimmed) || /\bROWNUM\b/i.test(trimmed)) {
+        return trimmed;
+      }
+      return trimmed + ` FETCH FIRST ${limit} ROWS ONLY`;
+    }
+
     if (DBManager.hasLimitClause(sql)) {
       return sql;
     }
@@ -911,12 +920,17 @@ export class DBManager {
             const client = dbClient.client as oracledb.Pool;
             const conn: oracledb.Connection = await client.getConnection();
             try {
-              const result = await conn.execute(sql)!;
+              const result = await conn.execute(sql, [], { autoCommit: true });
+              if (!result.rows) {
+                // DML/DDL: 결과 행이 없으므로 영향받은 행 수를 반환한다.
+                resolve({ rowsAffected: result.rowsAffected ?? 0 });
+                return;
+              }
               const rows = [];
               let row: any[], obj: any;
-              for (let i = 0; i < result.rows!.length; i++) {
+              for (let i = 0; i < result.rows.length; i++) {
                 obj = {};
-                row = result.rows![i] as any;
+                row = result.rows[i] as any;
                 for (let j = 0; j < result.metaData!.length; j++) {
                   obj[result.metaData![j].name] = row[j];
                 }

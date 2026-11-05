@@ -31,6 +31,12 @@ describe('DBManager', () => {
       expect(DBManager.removeLimitClause('SELECT * FROM t LIMIT 10;')).toBe('SELECT * FROM t');
     });
 
+    test('ensureLimitClause uses FETCH FIRST for oracle', () => {
+      expect(DBManager.ensureLimitClause('SELECT * FROM t;', 3, 'oracle')).toBe('SELECT * FROM t FETCH FIRST 3 ROWS ONLY');
+      expect(DBManager.ensureLimitClause('SELECT * FROM t FETCH FIRST 2 ROWS ONLY', 5, 'oracle')).toBe('SELECT * FROM t FETCH FIRST 2 ROWS ONLY');
+      expect(DBManager.ensureLimitClause('SELECT * FROM t WHERE ROWNUM <= 2', 5, 'oracle')).toBe('SELECT * FROM t WHERE ROWNUM <= 2');
+    });
+
     test('ensureLimitClause adds LIMIT or TOP as needed', () => {
       expect(DBManager.ensureLimitClause('SELECT * FROM t', 3)).toBe('SELECT * FROM t LIMIT 3');
       expect(DBManager.ensureLimitClause('SELECT * FROM t LIMIT 2', 5)).toBe('SELECT * FROM t LIMIT 2');
