@@ -54,7 +54,7 @@ export class App {
   constructor() {
     this.app = express();
     this.port = PORT || 7890;
-    logger.info('\n' + figlet.textSync('SCLAB AGENT', 'Star Wars'));
+    logger.info('\n' + figlet.textSync('SCLAB AGENT', { font: 'Star Wars' }));
     logger.info(`======================================================================================`);
     logger.info(`NODE_ENV: ${NODE_ENV}`);
     logger.info(`LOG_DIR: ${LOG_DIR}`);

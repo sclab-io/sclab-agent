@@ -4,6 +4,7 @@ import presto from 'presto-client';
 import type { ClientOptions } from 'presto-client';
 import { logger } from '../util/logger';
 import mariadb from 'mariadb';
+import type { Pool as MariaPool, PoolConnection as MariaPoolConnection } from 'mariadb';
 import oracledb from 'oracledb';
 import sql from 'mssql';
 import { MSSQL_IDLE_TIMEOUT_MS, TUNNEL_KEEP_ALIVE_INTERVAL_MS, USE_SQL_ENV, USE_AWS_SECRET_MANAGER, MAX_RESULT_ROWS } from '../config';
@@ -29,7 +30,7 @@ import { SecretManager } from '@/config/SecretManager';
 interface DBClient {
   client:
     | presto.Client
-    | mariadb.Pool
+    | MariaPool
     | oracledb.Pool
     | sql.ConnectionPool
     | odbc.Pool
@@ -427,7 +428,7 @@ export class DBManager {
       }
 
       case DB_TYPE.MYSQL: {
-        await (dbClient.client as mariadb.Pool).end();
+        await (dbClient.client as MariaPool).end();
         break;
       }
 
@@ -530,7 +531,7 @@ export class DBManager {
           }
 
           case DB_TYPE.MYSQL: {
-            const client = dbClient.client as mariadb.Pool;
+            const client = dbClient.client as MariaPool;
             try {
               const conn = await client.getConnection();
               try {
@@ -834,7 +835,7 @@ export class DBManager {
           }
 
           case DB_TYPE.MYSQL: {
-            const client = dbClient.client as mariadb.Pool;
+            const client = dbClient.client as MariaPool;
 
             // 커넥션 풀 관련 이슈로 인해 커넥션을 가져오지 못하는 경우 재시도
             if (client.closed || (client.idleConnections() === 0 && client.activeConnections() === 0)) {
@@ -847,7 +848,7 @@ export class DBManager {
               }
             }
 
-            let conn: mariadb.PoolConnection;
+            let conn: MariaPoolConnection;
             try {
               conn = await client.getConnection();
             } catch (e) {

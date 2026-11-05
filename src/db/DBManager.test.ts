@@ -58,6 +58,12 @@ describe('DBManager', () => {
       expect(() => DBManager.assertResultSize(new Array(10), 0)).not.toThrow();
     });
 
+    test('defaults to 100000 rows when MAX_RESULT_ROWS is unset', () => {
+      expect(DBManager.getMaxResultRows()).toBe(100000);
+      expect(() => DBManager.assertResultSize(new Array(100000), 0)).not.toThrow();
+      expect(() => DBManager.assertResultSize(new Array(100001), 0)).toThrow('Result set too large');
+    });
+
     test('runSQL applies the guard to executed results', async () => {
       jest.spyOn(DBManager, 'getMaxResultRows').mockReturnValue(2);
       jest.spyOn(DBManager as any, 'executeSQL').mockResolvedValue([1, 2, 3]);
