@@ -14,10 +14,9 @@
     "@types/hpp": "^0.2.2",
     "@types/jest": "^28.1.6",
     "@types/jsonwebtoken": "^8.5.8",
-    "@types/lz4": "^0.6.4",
     "@types/morgan": "^1.9.3",
     "@types/mssql": "^9.1.5",
-    "@types/node": "^18.19.130",
+    "@types/node": "^26.6.6",
     "@types/oracledb": "^6.5.1",
     "@types/presto-client": "^1.0.1",
     "@types/supertest": "^2.0.12",
@@ -36,7 +35,8 @@
     "ts-jest": "^29.1.4",
     "ts-node": "^10.9.2",
     "tsc-alias": "^1.8.10",
-    "tsconfig-paths": "^4.2.0"
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "~5.9"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
@@ -57,11 +57,11 @@
   ],
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.758.0",
-    "@databricks/sql": "^1.8.0",
-    "@google-cloud/bigquery": "^7.7.0",
+    "@databricks/sql": "^2.4.0",
+    "@google-cloud/bigquery": "^9.6.0",
     "@sap/hana-client": "^2.22.27",
     "@types/pg": "^8.11.6",
-    "better-sqlite3": "^12.5.0",
+    "better-sqlite3": "^13.0.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
     "compression": "^1.7.4",
@@ -73,7 +73,6 @@
     "helmet": "^7.1.0",
     "hpp": "^0.2.3",
     "jsonwebtoken": "^9.0.2",
-    "lz4": "^0.6.5",
     "mariadb": "^3.3.0",
     "morgan": "^1.10.0",
     "mqtt": "^5.7.0",
@@ -83,11 +82,16 @@
     "oracledb": "^6.5.1",
     "pg": "^8.12.0",
     "presto-client": "^1.1.0",
-    "snowflake-sdk": "^1.12.0",
+    "snowflake-sdk": "^3.4.1",
     "ssh2": "^1.16.0",
     "tunnel-ssh": "^5.2.0",
     "winston": "^3.13.0",
     "winston-daily-rotate-file": "^5.0.0",
-    "zod": "^3.23.8"
+    "zod": "^4.6.7"
+  },
+  "overrides": {
+    "basic-ftp": "^6.2.6",
+    "minimatch@>=7 <11": "^11.0.4",
+    "glob@>=9 <14.0.3": "^14.0.3"
   }
 }
