@@ -1,4 +1,4 @@
-FROM node:20.10.0-alpine3.18
+FROM node:26-alpine
 
 # unixODBC 및 기타 필요 패키지 설치
 RUN apk add --no-cache \

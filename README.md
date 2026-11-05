@@ -2,7 +2,7 @@
 
 ## requirement
 
-* node.js 20.10.0
+* node.js 26 (LTS) (verified on 22 and 26)
 
 ## installation
 
