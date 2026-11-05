@@ -3,7 +3,7 @@
   "description": "SCLAB Database agent for SCLAB Studio.",
   "module": "./src/index.ts",
   "devDependencies": {
-    "@swc/cli": "^0.7.7",
+    "@swc/cli": "^0.8.2",
     "@swc/core": "^1.2.220",
     "@types/bcrypt": "^5.0.0",
     "@types/compression": "^1.7.2",
@@ -31,7 +31,7 @@
     "eslint-plugin-prettier": "^4.2.1",
     "node-config": "^0.0.2",
     "nodemon": "^3.1.10",
-    "pm2": "^6.0.6",
+    "pm2": "^7.1.2",
     "prettier": "^2.7.1",
     "ts-jest": "^29.1.4",
     "ts-node": "^10.9.2",
